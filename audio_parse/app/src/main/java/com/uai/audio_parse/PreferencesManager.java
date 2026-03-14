@@ -1,0 +1,112 @@
+package com.uai.audio_parse;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+
+/**
+ * 偏好设置管理器
+ * 负责保存和读取应用的配置信息
+ * 包括API配置、模型选择、模型路径等
+ * 
+ * @author AI Generated
+ * @version 1.0
+ */
+public class PreferencesManager {
+    private static final String PREF_NAME = "audio_parse_prefs";
+    private static final String KEY_API_URL = "api_url";
+    private static final String KEY_API_TOKEN = "api_token";
+    private static final String KEY_MODEL_NAME = "model_name";
+    private static final String KEY_MODEL_PATH = "model_path";
+    private static final String KEY_SELECTED_MODEL_TYPE = "selected_model_type";
+    private static final String KEY_SPEECH_API_URL = "speech_api_url";
+    private static final String KEY_SPEECH_API_TOKEN = "speech_api_token";
+    private static final String KEY_USE_ONLINE_SPEECH = "use_online_speech";
+    
+    public static final String MODEL_TYPE_SMALL = "small";
+    public static final String MODEL_TYPE_STANDARD = "standard";
+    public static final String MODEL_TYPE_MULTICN = "multicn";
+    
+    private final SharedPreferences sharedPreferences;
+    
+    public PreferencesManager(Context context) {
+        sharedPreferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+    }
+    
+    public void saveApiConfig(String apiUrl, String apiToken, String modelName) {
+        sharedPreferences.edit()
+                .putString(KEY_API_URL, apiUrl)
+                .putString(KEY_API_TOKEN, apiToken)
+                .putString(KEY_MODEL_NAME, modelName)
+                .apply();
+    }
+    
+    public String getApiUrl() {
+        return sharedPreferences.getString(KEY_API_URL, "");
+    }
+    
+    public String getApiToken() {
+        return sharedPreferences.getString(KEY_API_TOKEN, "");
+    }
+    
+    public String getModelName() {
+        return sharedPreferences.getString(KEY_MODEL_NAME, "gpt-3.5-turbo");
+    }
+    
+    public boolean isApiConfigured() {
+        String apiUrl = getApiUrl();
+        String apiToken = getApiToken();
+        return apiUrl != null && !apiUrl.isEmpty() && apiToken != null && !apiToken.isEmpty();
+    }
+    
+    public void saveModelPath(String modelPath) {
+        sharedPreferences.edit()
+                .putString(KEY_MODEL_PATH, modelPath)
+                .apply();
+    }
+    
+    public String getModelPath() {
+        return sharedPreferences.getString(KEY_MODEL_PATH, "");
+    }
+    
+    public void saveSelectedModelType(String modelType) {
+        sharedPreferences.edit()
+                .putString(KEY_SELECTED_MODEL_TYPE, modelType)
+                .apply();
+    }
+    
+    public String getSelectedModelType() {
+        return sharedPreferences.getString(KEY_SELECTED_MODEL_TYPE, MODEL_TYPE_SMALL);
+    }
+    
+    public void saveSpeechApiConfig(String speechApiUrl, String speechApiToken) {
+        sharedPreferences.edit()
+                .putString(KEY_SPEECH_API_URL, speechApiUrl)
+                .putString(KEY_SPEECH_API_TOKEN, speechApiToken)
+                .apply();
+    }
+    
+    public String getSpeechApiUrl() {
+        return sharedPreferences.getString(KEY_SPEECH_API_URL, "");
+    }
+    
+    public String getSpeechApiToken() {
+        return sharedPreferences.getString(KEY_SPEECH_API_TOKEN, "");
+    }
+    
+    public boolean isSpeechApiConfigured() {
+        String speechApiUrl = getSpeechApiUrl();
+        String speechApiToken = getSpeechApiToken();
+        return speechApiUrl != null && !speechApiUrl.isEmpty() && 
+               speechApiToken != null && !speechApiToken.isEmpty();
+    }
+    
+    public void setUseOnlineSpeech(boolean useOnline) {
+        sharedPreferences.edit()
+                .putBoolean(KEY_USE_ONLINE_SPEECH, useOnline)
+                .apply();
+    }
+    
+    public boolean getUseOnlineSpeech() {
+        return sharedPreferences.getBoolean(KEY_USE_ONLINE_SPEECH, false);
+    }
+}
