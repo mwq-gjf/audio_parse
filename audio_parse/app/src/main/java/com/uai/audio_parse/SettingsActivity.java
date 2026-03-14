@@ -1,6 +1,11 @@
 package com.uai.audio_parse;
 
 import android.app.ProgressDialog;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
@@ -12,6 +17,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.google.android.material.textfield.TextInputEditText;
 
@@ -44,6 +50,43 @@ public class SettingsActivity extends AppCompatActivity {
     private ModelDownloader modelDownloader;
     private LLMClient llmClient;
     private ProgressDialog progressDialog;
+    private String downloadingModelType;
+    
+    private final BroadcastReceiver downloadReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (ModelDownloadService.BROADCAST_DOWNLOAD_PROGRESS.equals(action)) {
+                int progress = intent.getIntExtra(ModelDownloadService.EXTRA_PROGRESS, 0);
+                String status = intent.getStringExtra(ModelDownloadService.EXTRA_STATUS);
+                if (progressDialog != null && progressDialog.isShowing()) {
+                    progressDialog.setProgress(progress);
+                    String modelName = modelDownloader.getModelDisplayName(downloadingModelType);
+                    String sizeHint = PreferencesManager.MODEL_TYPE_STANDARD.equals(downloadingModelType) ? "1.3GB" : 
+                                     PreferencesManager.MODEL_TYPE_MULTICN.equals(downloadingModelType) ? "1.8GB" : "50MB";
+                    if (progress < 50) {
+                        progressDialog.setMessage(getString(R.string.model_download_progress, progress * 2) + "\n" + modelName + " (" + sizeHint + ")");
+                    } else {
+                        progressDialog.setMessage(getString(R.string.model_extract_progress, (progress - 50) * 2) + "\n" + modelName + " (" + sizeHint + ")");
+                    }
+                }
+            } else if (ModelDownloadService.BROADCAST_DOWNLOAD_COMPLETE.equals(action)) {
+                String modelPath = intent.getStringExtra(ModelDownloadService.EXTRA_MODEL_PATH);
+                String modelName = intent.getStringExtra(ModelDownloadService.EXTRA_MODEL_NAME);
+                if (progressDialog != null && progressDialog.isShowing()) {
+                    progressDialog.dismiss();
+                }
+                updateModelStatus();
+                Toast.makeText(SettingsActivity.this, modelName + " 下载完成", Toast.LENGTH_SHORT).show();
+            } else if (ModelDownloadService.BROADCAST_DOWNLOAD_ERROR.equals(action)) {
+                String error = intent.getStringExtra(ModelDownloadService.EXTRA_ERROR);
+                if (progressDialog != null && progressDialog.isShowing()) {
+                    progressDialog.dismiss();
+                }
+                Toast.makeText(SettingsActivity.this, error, Toast.LENGTH_LONG).show();
+            }
+        }
+    };
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,6 +121,8 @@ public class SettingsActivity extends AppCompatActivity {
         
         testConnectionButton.setOnClickListener(v -> testConnection());
         saveButton.setOnClickListener(v -> saveSettings());
+        
+        findViewById(R.id.licensesButton).setOnClickListener(v -> showLicensesDialog());
         
         smallModelCard.setOnClickListener(v -> handleModelCardClick(PreferencesManager.MODEL_TYPE_SMALL));
         standardModelCard.setOnClickListener(v -> handleModelCardClick(PreferencesManager.MODEL_TYPE_STANDARD));
@@ -144,49 +189,40 @@ public class SettingsActivity extends AppCompatActivity {
     }
     
     private void downloadModel(String modelType) {
+        if (ModelDownloadService.isDownloading(this)) {
+            Toast.makeText(this, "已有模型正在下载中", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        downloadingModelType = modelType;
+        showDownloadProgressDialog(modelType);
+        
+        Intent intent = new Intent(this, ModelDownloadService.class);
+        intent.setAction(ModelDownloadService.ACTION_START_DOWNLOAD);
+        intent.putExtra(ModelDownloadService.EXTRA_MODEL_TYPE, modelType);
+        
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            startForegroundService(intent);
+        } else {
+            startService(intent);
+        }
+    }
+    
+    private void showDownloadProgressDialog(String modelType) {
         String modelName = modelDownloader.getModelDisplayName(modelType);
-        String sizeHint = PreferencesManager.MODEL_TYPE_STANDARD.equals(modelType) ? "1.3GB" : "50MB";
+        String sizeHint = PreferencesManager.MODEL_TYPE_STANDARD.equals(modelType) ? "1.3GB" : 
+                         PreferencesManager.MODEL_TYPE_MULTICN.equals(modelType) ? "1.8GB" : "50MB";
         
         progressDialog = new ProgressDialog(this);
         progressDialog.setMessage(getString(R.string.model_download_progress, 0) + "\n" + modelName + " (" + sizeHint + ")");
         progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
         progressDialog.setMax(100);
         progressDialog.setCancelable(false);
-        progressDialog.show();
-        
-        modelDownloader.downloadModel(modelType, new ModelDownloader.DownloadCallback() {
-            @Override
-            public void onProgress(int progress) {
-                runOnUiThread(() -> {
-                    progressDialog.setProgress(progress);
-                    if (progress < 50) {
-                        progressDialog.setMessage(getString(R.string.model_download_progress, progress * 2) + "\n" + modelName + " (" + sizeHint + ")");
-                    } else {
-                        progressDialog.setMessage(getString(R.string.model_extract_progress, (progress - 50) * 2) + "\n" + modelName + " (" + sizeHint + ")");
-                    }
-                });
-            }
-            
-            @Override
-            public void onComplete(String modelPath) {
-                runOnUiThread(() -> {
-                    progressDialog.dismiss();
-                    preferencesManager.saveSelectedModelType(modelType);
-                    preferencesManager.saveModelPath(modelPath);
-                    updateModelStatus();
-                    Toast.makeText(SettingsActivity.this, R.string.model_download_success,
-                            Toast.LENGTH_SHORT).show();
-                });
-            }
-            
-            @Override
-            public void onError(String error) {
-                runOnUiThread(() -> {
-                    progressDialog.dismiss();
-                    Toast.makeText(SettingsActivity.this, error, Toast.LENGTH_LONG).show();
-                });
-            }
+        progressDialog.setButton(DialogInterface.BUTTON_NEGATIVE, "后台下载", (dialog, which) -> {
+            dialog.dismiss();
+            Toast.makeText(SettingsActivity.this, "模型将在后台继续下载", Toast.LENGTH_SHORT).show();
         });
+        progressDialog.show();
     }
     
     private void switchModel(String modelType) {
@@ -277,6 +313,41 @@ public class SettingsActivity extends AppCompatActivity {
         preferencesManager.saveApiConfig(apiUrl, apiToken, modelName);
         Toast.makeText(this, R.string.settings_saved, Toast.LENGTH_SHORT).show();
         finish();
+    }
+    
+    private void showLicensesDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.licenses_title)
+                .setMessage(R.string.licenses_content)
+                .setPositiveButton(R.string.confirm, null)
+                .create()
+                .show();
+    }
+    
+    @Override
+    protected void onResume() {
+        super.onResume();
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(ModelDownloadService.BROADCAST_DOWNLOAD_PROGRESS);
+        filter.addAction(ModelDownloadService.BROADCAST_DOWNLOAD_COMPLETE);
+        filter.addAction(ModelDownloadService.BROADCAST_DOWNLOAD_ERROR);
+        LocalBroadcastManager.getInstance(this).registerReceiver(downloadReceiver, filter);
+        
+        if (ModelDownloadService.isDownloading(this)) {
+            String downloadingModel = ModelDownloadService.getDownloadingModel(this);
+            if (downloadingModel != null) {
+                downloadingModelType = downloadingModel;
+                showDownloadProgressDialog(downloadingModel);
+            }
+        }
+        
+        updateModelStatus();
+    }
+    
+    @Override
+    protected void onPause() {
+        super.onPause();
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(downloadReceiver);
     }
     
     @Override

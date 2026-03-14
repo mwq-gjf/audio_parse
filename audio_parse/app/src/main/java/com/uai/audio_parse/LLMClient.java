@@ -46,12 +46,15 @@ public class LLMClient {
     public interface SummaryCallback {
         void onSuccess(String summary);
         void onError(String error);
-        void onProgress(String partial);
+        void onProgress(String status);
+        void onModelCall(String modelName);
     }
     
     public void summarize(String text, SummaryCallback callback) {
         new Thread(() -> {
             try {
+                callback.onProgress("准备开始总结...");
+                
                 String normalizedUrl = normalizeUrl(apiUrl);
                 
                 JSONObject requestBody = new JSONObject();
@@ -75,12 +78,16 @@ public class LLMClient {
                 
                 String url = normalizedUrl + "/chat/completions";
                 
+                callback.onModelCall(modelName);
+                
                 Request request = new Request.Builder()
                         .url(url)
                         .addHeader("Authorization", "Bearer " + apiToken)
                         .addHeader("Content-Type", "application/json")
                         .post(RequestBody.create(requestBody.toString(), JSON))
                         .build();
+                
+                callback.onProgress("等待模型返回结果...");
                 
                 try (Response response = client.newCall(request).execute()) {
                     if (!response.isSuccessful()) {

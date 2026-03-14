@@ -11,9 +11,13 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -25,6 +29,8 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.tabs.TabLayout;
 
@@ -32,7 +38,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -63,14 +71,52 @@ public class MainActivity extends AppCompatActivity {
     private SpeechRecognizer speechRecognizer;
     private ModelDownloader modelDownloader;
     private LLMClient llmClient;
+    private TranscriptionHistoryManager historyManager;
     
     private Uri selectedFileUri;
+    private String selectedFileName = "";
     private String transcribedText = "";
     private String summaryText = "";
     private String extractedAudioPath = "";
     private boolean isShowingSummary = false;
+    private boolean isTranscribing = false;
+    private boolean isSummarizing = false;
+    private boolean isShowingDots = false;
+    private boolean isSummaryShowingDots = false;
     
     private ProgressDialog progressDialog;
+    
+    private final Handler buttonAnimationHandler = new Handler();
+    private final Runnable buttonAnimationRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (isTranscribing) {
+                isShowingDots = !isShowingDots;
+                if (isShowingDots) {
+                    transcribeButton.setText("停止转写...");
+                } else {
+                    transcribeButton.setText(R.string.stop_transcribe);
+                }
+                buttonAnimationHandler.postDelayed(this, 1000);
+            }
+        }
+    };
+    
+    private final Handler summaryAnimationHandler = new Handler();
+    private final Runnable summaryAnimationRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (isSummarizing) {
+                isSummaryShowingDots = !isSummaryShowingDots;
+                if (isSummaryShowingDots) {
+                    resultTextView.setText("AI总结中...");
+                } else {
+                    resultTextView.setText("AI总结中");
+                }
+                summaryAnimationHandler.postDelayed(this, 1000);
+            }
+        }
+    };
     
     private final ActivityResultLauncher<String> filePickerLauncher = registerForActivityResult(
             new ActivityResultContracts.GetContent(),
@@ -107,6 +153,12 @@ public class MainActivity extends AppCompatActivity {
         resultTextView = findViewById(R.id.resultTextView);
         tabLayout = findViewById(R.id.tabLayout);
         
+        ImageButton helpButton = findViewById(R.id.helpButton);
+        helpButton.setOnClickListener(v -> showAppIntroDialog());
+        
+        ImageButton historyButton = findViewById(R.id.historyButton);
+        historyButton.setOnClickListener(v -> showHistoryDialog());
+        
         findViewById(R.id.selectFileButton).setOnClickListener(v -> selectFile());
         transcribeButton.setOnClickListener(v -> startTranscription());
         copyButton.setOnClickListener(v -> copyText());
@@ -137,6 +189,7 @@ public class MainActivity extends AppCompatActivity {
         preferencesManager = new PreferencesManager(this);
         audioExtractor = new AudioExtractor();
         modelDownloader = new ModelDownloader(this);
+        historyManager = new TranscriptionHistoryManager(this);
     }
     
     private void checkPermissions() {
@@ -174,7 +227,11 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         if (speechRecognizer != null) {
-            speechRecognizer.stop();
+            speechRecognizer.close();
+            speechRecognizer = null;
+        }
+        if (audioExtractor != null) {
+            audioExtractor.cancel();
         }
     }
     
@@ -235,6 +292,7 @@ public class MainActivity extends AppCompatActivity {
             public void onComplete(String modelPath) {
                 runOnUiThread(() -> {
                     progressDialog.dismiss();
+                    preferencesManager.saveSelectedModelType(selectedModelType);
                     preferencesManager.saveModelPath(modelPath);
                     Toast.makeText(MainActivity.this, R.string.model_ready, Toast.LENGTH_SHORT).show();
                 });
@@ -256,10 +314,10 @@ public class MainActivity extends AppCompatActivity {
     
     private void updateFileInfo() {
         if (selectedFileUri != null) {
-            String fileName = getFileName(selectedFileUri);
+            selectedFileName = getFileName(selectedFileUri);
             long fileSize = getFileSize(selectedFileUri);
             String sizeStr = AudioExtractor.formatFileSize(fileSize);
-            fileInfoTextView.setText(fileName + " (" + sizeStr + ")");
+            fileInfoTextView.setText(selectedFileName + " (" + sizeStr + ")");
         }
     }
     
@@ -312,6 +370,11 @@ public class MainActivity extends AppCompatActivity {
     }
     
     private void startTranscription() {
+        if (isTranscribing) {
+            stopTranscription();
+            return;
+        }
+        
         if (selectedFileUri == null) {
             Toast.makeText(this, R.string.no_file_selected, Toast.LENGTH_SHORT).show();
             return;
@@ -323,8 +386,11 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         
-        transcribeButton.setEnabled(false);
+        isTranscribing = true;
+        transcribeButton.setEnabled(true);
         transcribeButton.setText(R.string.stop_transcribe);
+        isShowingDots = false;
+        buttonAnimationHandler.post(buttonAnimationRunnable);
         progressBar.setVisibility(View.VISIBLE);
         progressTextView.setVisibility(View.VISIBLE);
         transcribedText = "";
@@ -345,6 +411,10 @@ public class MainActivity extends AppCompatActivity {
                         progressTextView.setText(getString(R.string.progress_detail, stepText, progress));
                     });
                 });
+                
+                if (!isTranscribing) {
+                    return;
+                }
                 
                 extractedAudioPath = audioPath;
                 
@@ -379,6 +449,8 @@ public class MainActivity extends AppCompatActivity {
                             @Override
                             public void onComplete(String fullResult) {
                                 runOnUiThread(() -> {
+                                    isTranscribing = false;
+                                    buttonAnimationHandler.removeCallbacks(buttonAnimationRunnable);
                                     transcribedText = fullResult;
                                     if (!isShowingSummary) {
                                         resultTextView.setText(fullResult);
@@ -387,6 +459,11 @@ public class MainActivity extends AppCompatActivity {
                                     progressTextView.setVisibility(View.GONE);
                                     transcribeButton.setEnabled(true);
                                     transcribeButton.setText(R.string.start_transcribe);
+                                    
+                                    if (!fullResult.isEmpty()) {
+                                        historyManager.addHistory(selectedFileName, fullResult, "");
+                                    }
+                                    
                                     Toast.makeText(MainActivity.this, 
                                             R.string.transcribe_complete, Toast.LENGTH_SHORT).show();
                                 });
@@ -395,6 +472,8 @@ public class MainActivity extends AppCompatActivity {
                             @Override
                             public void onError(String error) {
                                 runOnUiThread(() -> {
+                                    isTranscribing = false;
+                                    buttonAnimationHandler.removeCallbacks(buttonAnimationRunnable);
                                     progressBar.setVisibility(View.GONE);
                                     progressTextView.setVisibility(View.GONE);
                                     transcribeButton.setEnabled(true);
@@ -420,6 +499,8 @@ public class MainActivity extends AppCompatActivity {
             } catch (Exception e) {
                 e.printStackTrace();
                 runOnUiThread(() -> {
+                    isTranscribing = false;
+                    buttonAnimationHandler.removeCallbacks(buttonAnimationRunnable);
                     progressBar.setVisibility(View.GONE);
                     progressTextView.setVisibility(View.GONE);
                     transcribeButton.setEnabled(true);
@@ -429,6 +510,22 @@ public class MainActivity extends AppCompatActivity {
                 });
             }
         }).start();
+    }
+    
+    private void stopTranscription() {
+        isTranscribing = false;
+        buttonAnimationHandler.removeCallbacks(buttonAnimationRunnable);
+        if (audioExtractor != null) {
+            audioExtractor.cancel();
+        }
+        if (speechRecognizer != null) {
+            speechRecognizer.stop();
+        }
+        progressBar.setVisibility(View.GONE);
+        progressTextView.setVisibility(View.GONE);
+        transcribeButton.setEnabled(true);
+        transcribeButton.setText(R.string.start_transcribe);
+        Toast.makeText(this, "转写已停止", Toast.LENGTH_SHORT).show();
     }
     
     private void copyText() {
@@ -519,25 +616,32 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         
+        isSummarizing = true;
+        isShowingSummary = true;
+        isSummaryShowingDots = false;
+        tabLayout.selectTab(tabLayout.getTabAt(1));
         summaryButton.setEnabled(false);
+        summaryAnimationHandler.post(summaryAnimationRunnable);
         progressBar.setVisibility(View.VISIBLE);
         progressTextView.setVisibility(View.VISIBLE);
-        progressTextView.setText("正在连接AI服务...");
+        progressTextView.setText("开始AI总结...");
         
         llmClient = new LLMClient(apiUrl, apiToken, modelName);
         llmClient.summarize(transcribedText, new LLMClient.SummaryCallback() {
             @Override
             public void onSuccess(String summary) {
                 runOnUiThread(() -> {
+                    isSummarizing = false;
+                    summaryAnimationHandler.removeCallbacks(summaryAnimationRunnable);
                     summaryText = summary;
-                    if (isShowingSummary) {
-                        resultTextView.setText(summary);
-                    }
+                    resultTextView.setText(summary);
                     progressBar.setVisibility(View.GONE);
                     progressTextView.setVisibility(View.GONE);
                     summaryButton.setEnabled(true);
                     
-                    tabLayout.selectTab(tabLayout.getTabAt(1));
+                    if (!transcribedText.isEmpty() && !summary.isEmpty()) {
+                        historyManager.addHistory(selectedFileName, transcribedText, summary);
+                    }
                     
                     Toast.makeText(MainActivity.this, 
                             R.string.summary_complete, Toast.LENGTH_SHORT).show();
@@ -547,6 +651,9 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
+                    isSummarizing = false;
+                    summaryAnimationHandler.removeCallbacks(summaryAnimationRunnable);
+                    resultTextView.setText("");
                     progressBar.setVisibility(View.GONE);
                     progressTextView.setVisibility(View.GONE);
                     summaryButton.setEnabled(true);
@@ -556,9 +663,16 @@ public class MainActivity extends AppCompatActivity {
             }
             
             @Override
-            public void onProgress(String partial) {
+            public void onProgress(String status) {
                 runOnUiThread(() -> {
-                    progressTextView.setText("正在生成总结...");
+                    progressTextView.setText(status);
+                });
+            }
+            
+            @Override
+            public void onModelCall(String modelName) {
+                runOnUiThread(() -> {
+                    progressTextView.setText("调用模型: " + modelName);
                 });
             }
         });
@@ -567,6 +681,161 @@ public class MainActivity extends AppCompatActivity {
     private void openSettings() {
         Intent intent = new Intent(this, SettingsActivity.class);
         startActivity(intent);
+    }
+    
+    private void showAppIntroDialog() {
+        LayoutInflater inflater = LayoutInflater.from(this);
+        View dialogView = inflater.inflate(R.layout.dialog_app_intro, null);
+        
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.app_intro)
+                .setView(dialogView)
+                .setPositiveButton(R.string.confirm, null)
+                .create()
+                .show();
+    }
+    
+    private void showHistoryDialog() {
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_history, null);
+        RecyclerView recyclerView = dialogView.findViewById(R.id.historyRecyclerView);
+        TextView emptyTextView = dialogView.findViewById(R.id.emptyHistoryTextView);
+        Button clearAllButton = dialogView.findViewById(R.id.clearAllButton);
+        
+        List<TranscriptionHistoryManager.HistoryItem> historyList = historyManager.getHistoryList();
+        
+        if (historyList.isEmpty()) {
+            recyclerView.setVisibility(View.GONE);
+            emptyTextView.setVisibility(View.VISIBLE);
+        } else {
+            recyclerView.setVisibility(View.VISIBLE);
+            emptyTextView.setVisibility(View.GONE);
+        }
+        
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        final HistoryAdapter[] adapterRef = new HistoryAdapter[1];
+        HistoryAdapter adapter = new HistoryAdapter(historyList, new HistoryAdapter.OnHistoryItemClickListener() {
+            @Override
+            public void onUseClick(TranscriptionHistoryManager.HistoryItem item) {
+                transcribedText = item.text;
+                summaryText = item.summary;
+                updateResultText();
+                Toast.makeText(MainActivity.this, "已加载历史记录", Toast.LENGTH_SHORT).show();
+            }
+            
+            @Override
+            public void onDeleteClick(TranscriptionHistoryManager.HistoryItem item) {
+                new AlertDialog.Builder(MainActivity.this)
+                        .setMessage(R.string.history_delete_confirm)
+                        .setPositiveButton(R.string.confirm, (dialog, which) -> {
+                            historyManager.deleteHistory(item.id);
+                            historyList.remove(item);
+                            if (adapterRef[0] != null) {
+                                adapterRef[0].notifyDataSetChanged();
+                            }
+                            
+                            if (historyList.isEmpty()) {
+                                recyclerView.setVisibility(View.GONE);
+                                emptyTextView.setVisibility(View.VISIBLE);
+                            }
+                            
+                            Toast.makeText(MainActivity.this, R.string.history_deleted, Toast.LENGTH_SHORT).show();
+                        })
+                        .setNegativeButton(R.string.cancel, null)
+                        .show();
+            }
+        });
+        adapterRef[0] = adapter;
+        recyclerView.setAdapter(adapter);
+        
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(dialogView)
+                .setNegativeButton(R.string.cancel, null)
+                .create();
+        
+        clearAllButton.setOnClickListener(v -> {
+            if (historyList.isEmpty()) {
+                return;
+            }
+            new AlertDialog.Builder(MainActivity.this)
+                    .setMessage(R.string.history_clear_confirm)
+                    .setPositiveButton(R.string.confirm, (d, which) -> {
+                        historyManager.clearAllHistory();
+                        historyList.clear();
+                        adapter.notifyDataSetChanged();
+                        recyclerView.setVisibility(View.GONE);
+                        emptyTextView.setVisibility(View.VISIBLE);
+                        Toast.makeText(MainActivity.this, R.string.history_cleared, Toast.LENGTH_SHORT).show();
+                    })
+                    .setNegativeButton(R.string.cancel, null)
+                    .show();
+        });
+        
+        dialog.show();
+    }
+    
+    private static class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHolder> {
+        
+        private final List<TranscriptionHistoryManager.HistoryItem> historyList;
+        private final OnHistoryItemClickListener listener;
+        
+        interface OnHistoryItemClickListener {
+            void onUseClick(TranscriptionHistoryManager.HistoryItem item);
+            void onDeleteClick(TranscriptionHistoryManager.HistoryItem item);
+        }
+        
+        public HistoryAdapter(List<TranscriptionHistoryManager.HistoryItem> historyList, OnHistoryItemClickListener listener) {
+            this.historyList = historyList;
+            this.listener = listener;
+        }
+        
+        @NonNull
+        @Override
+        public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_history, parent, false);
+            return new ViewHolder(view);
+        }
+        
+        @Override
+        public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+            TranscriptionHistoryManager.HistoryItem item = historyList.get(position);
+            holder.fileNameTextView.setText(item.fileName);
+            holder.timeTextView.setText(item.getFormattedTime());
+            holder.contentTextView.setText(item.text);
+            
+            holder.useButton.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onUseClick(item);
+                }
+            });
+            
+            holder.deleteButton.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onDeleteClick(item);
+                }
+            });
+        }
+        
+        @Override
+        public int getItemCount() {
+            return historyList.size();
+        }
+        
+        static class ViewHolder extends RecyclerView.ViewHolder {
+            TextView fileNameTextView;
+            TextView timeTextView;
+            TextView contentTextView;
+            Button useButton;
+            Button deleteButton;
+            
+            public ViewHolder(@NonNull View itemView) {
+                super(itemView);
+                fileNameTextView = itemView.findViewById(R.id.fileNameTextView);
+                timeTextView = itemView.findViewById(R.id.timeTextView);
+                contentTextView = itemView.findViewById(R.id.contentTextView);
+                useButton = itemView.findViewById(R.id.useButton);
+                deleteButton = itemView.findViewById(R.id.deleteButton);
+            }
+        }
     }
     
     private void updateResultText() {

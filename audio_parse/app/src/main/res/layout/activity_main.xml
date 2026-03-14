@@ -23,21 +23,47 @@
             android:paddingEnd="24dp"
             android:paddingBottom="16dp">
 
-            <TextView
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/app_name"
-                android:textColor="@color/white"
-                android:textSize="28sp"
-                android:textStyle="bold" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="音视频转文本助手"
-                android:textColor="@color/orange_100"
-                android:textSize="13sp" />
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/app_name"
+                        android:textColor="@color/white"
+                        android:textSize="28sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="音视频转文本助手"
+                        android:textColor="@color/orange_100"
+                        android:textSize="13sp" />
+
+                </LinearLayout>
+
+                <ImageButton
+                    android:id="@+id/helpButton"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/app_intro"
+                    android:src="@android:drawable/ic_menu_help"
+                    android:tint="@color/white"
+                    android:scaleType="centerInside" />
+
+            </LinearLayout>
 
         </LinearLayout>
 
@@ -53,7 +79,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:padding="12dp">
 
             <androidx.cardview.widget.CardView
                 android:id="@+id/fileSelectCard"
@@ -67,14 +93,14 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="20dp">
+                    android:padding="16dp">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="选择文件"
                         android:textColor="@color/text_primary"
-                        android:textSize="18sp"
+                        android:textSize="16sp"
                         android:textStyle="bold" />
 
                     <com.google.android.material.button.MaterialButton
@@ -82,19 +108,20 @@
                         style="@style/PrimaryButton"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
+                        android:layout_marginTop="10dp"
                         android:text="@string/select_file"
-                        app:icon="@android:drawable/ic_menu_upload" />
+                        app:icon="@android:drawable/ic_menu_upload"
+                        app:iconSize="16dp" />
 
                     <TextView
                         android:id="@+id/fileInfoTextView"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="6dp"
                         android:drawablePadding="8dp"
                         android:text="@string/no_file_selected"
                         android:textColor="@color/text_secondary"
-                        android:textSize="13sp"
+                        android:textSize="12sp"
                         android:visibility="visible" />
 
                 </LinearLayout>
@@ -104,7 +131,7 @@
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="12dp"
                 app:cardBackgroundColor="@color/card_background"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="2dp">
@@ -113,14 +140,14 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="20dp">
+                    android:padding="16dp">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="转写总结"
                         android:textColor="@color/text_primary"
-                        android:textSize="18sp"
+                        android:textSize="16sp"
                         android:textStyle="bold" />
 
                     <com.google.android.material.button.MaterialButton
@@ -128,17 +155,18 @@
                         style="@style/PrimaryButton"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
+                        android:layout_marginTop="10dp"
                         android:text="@string/start_transcribe"
                         android:textStyle="bold"
                         app:icon="@android:drawable/ic_media_play"
-                        app:iconGravity="textStart" />
+                        app:iconGravity="textStart"
+                        app:iconSize="16dp" />
 
                     <LinearLayout
                         android:id="@+id/progressLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
+                        android:layout_marginTop="10dp"
                         android:orientation="vertical"
                         android:visibility="gone">
 
@@ -157,10 +185,10 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_gravity="center"
-                            android:layout_marginTop="6dp"
+                            android:layout_marginTop="4dp"
                             android:text=""
                             android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
+                            android:textSize="11sp" />
 
                     </LinearLayout>
 
@@ -168,7 +196,7 @@
                         android:id="@+id/buttonLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
+                        android:layout_marginTop="10dp"
                         android:orientation="horizontal">
 
                         <com.google.android.material.button.MaterialButton
@@ -176,34 +204,37 @@
                             style="@style/SecondaryButton"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginEnd="4dp"
+                            android:layout_marginEnd="3dp"
                             android:layout_weight="1"
                             android:text="@string/copy"
                             app:icon="@android:drawable/ic_menu_agenda"
-                            app:iconGravity="textStart" />
+                            app:iconGravity="textStart"
+                            app:iconSize="14dp" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/saveButton"
                             style="@style/SecondaryButton"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="4dp"
-                            android:layout_marginEnd="4dp"
+                            android:layout_marginStart="3dp"
+                            android:layout_marginEnd="3dp"
                             android:layout_weight="1"
                             android:text="@string/save"
                             app:icon="@android:drawable/ic_menu_save"
-                            app:iconGravity="textStart" />
+                            app:iconGravity="textStart"
+                            app:iconSize="14dp" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/shareButton"
                             style="@style/SecondaryButton"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="4dp"
+                            android:layout_marginStart="3dp"
                             android:layout_weight="1"
                             android:text="@string/share"
                             app:icon="@android:drawable/ic_menu_share"
-                            app:iconGravity="textStart" />
+                            app:iconGravity="textStart"
+                            app:iconSize="14dp" />
 
                     </LinearLayout>
 
@@ -218,34 +249,37 @@
                             style="@style/SecondaryButton"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginEnd="4dp"
+                            android:layout_marginEnd="3dp"
                             android:layout_weight="1"
                             android:text="@string/save_audio"
                             app:icon="@android:drawable/ic_menu_save"
-                            app:iconGravity="textStart" />
+                            app:iconGravity="textStart"
+                            app:iconSize="14dp" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/summaryButton"
                             style="@style/PrimaryButton"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="4dp"
-                            android:layout_marginEnd="4dp"
+                            android:layout_marginStart="3dp"
+                            android:layout_marginEnd="3dp"
                             android:layout_weight="1"
                             android:text="@string/ai_summary"
                             app:icon="@android:drawable/ic_menu_edit"
-                            app:iconGravity="textStart" />
+                            app:iconGravity="textStart"
+                            app:iconSize="14dp" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/settingsButton"
                             style="@style/SecondaryButton"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="4dp"
+                            android:layout_marginStart="3dp"
                             android:layout_weight="1"
                             android:text="@string/settings"
                             app:icon="@android:drawable/ic_menu_manage"
-                            app:iconGravity="textStart" />
+                            app:iconGravity="textStart"
+                            app:iconSize="14dp" />
 
                     </LinearLayout>
 
@@ -257,7 +291,7 @@
                 android:id="@+id/resultCard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="12dp"
                 app:cardBackgroundColor="@color/card_background"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="2dp">
@@ -267,27 +301,47 @@
                     android:layout_height="wrap_content"
                     android:orientation="vertical">
 
-                    <com.google.android.material.tabs.TabLayout
-                        android:id="@+id/tabLayout"
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:background="@color/card_background"
-                        app:tabIndicatorColor="@color/orange_primary"
-                        app:tabIndicatorHeight="3dp"
-                        app:tabSelectedTextColor="@color/orange_primary"
-                        app:tabTextColor="@color/text_secondary">
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
 
-                        <com.google.android.material.tabs.TabItem
-                            android:layout_width="wrap_content"
+                        <com.google.android.material.tabs.TabLayout
+                            android:id="@+id/tabLayout"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:text="@string/transcribe_result" />
+                            android:layout_weight="1"
+                            android:background="@color/card_background"
+                            app:tabIndicatorColor="@color/orange_primary"
+                            app:tabIndicatorHeight="3dp"
+                            app:tabSelectedTextColor="@color/orange_primary"
+                            app:tabTextColor="@color/text_secondary">
 
-                        <com.google.android.material.tabs.TabItem
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/summary_result" />
+                            <com.google.android.material.tabs.TabItem
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/transcribe_result" />
 
-                    </com.google.android.material.tabs.TabLayout>
+                            <com.google.android.material.tabs.TabItem
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/summary_result" />
+
+                        </com.google.android.material.tabs.TabLayout>
+
+                        <ImageButton
+                            android:id="@+id/historyButton"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:layout_marginEnd="8dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="@string/history_title"
+                            android:src="@android:drawable/ic_menu_recent_history"
+                            android:tint="@color/orange_400"
+                            android:scaleType="centerInside" />
+
+                    </LinearLayout>
 
                     <View
                         android:layout_width="match_parent"

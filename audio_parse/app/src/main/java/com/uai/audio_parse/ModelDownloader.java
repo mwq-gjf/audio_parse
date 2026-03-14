@@ -251,7 +251,7 @@ public class ModelDownloader {
     
     public boolean deleteModel(String modelType) {
         String modelName = getModelName(modelType);
-        File modelDir = new File(context.getFilesDir(), modelName);
+        File modelDir = new File(getModelsStorageDir(), modelName);
         if (modelDir.exists()) {
             deleteDirectory(modelDir);
             return true;

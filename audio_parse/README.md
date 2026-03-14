@@ -19,6 +19,7 @@
 - 🤖 **AI智能总结** - 支持接入大语言模型API进行文本总结
 - 📝 **结果管理** - 支持复制、保存、分享转写结果
 - 💾 **音频保存** - 可保存提取的音频文件
+- 📜 **转写历史** - 自动保存最近10条转写记录，支持快速加载和删除
 
 ### 技术特性
 - 📱 **Material Design** - 现代化的UI设计
@@ -188,6 +189,12 @@ android {
    - 保存音频：保存提取的音频文件
    - 分享：通过系统分享功能分享文本
 
+5. **转写历史**
+   - 点击结果区域右上角的历史图标查看转写记录
+   - 最多保存10条历史记录
+   - 点击"使用"可快速加载历史记录
+   - 支持删除单条记录或清空全部历史
+
 ### 模型说明
 
 | 模型 | 大小 | 特点 | 适用场景 |
@@ -204,20 +211,21 @@ audio_parse/
 │   ├── src/
 │   │   ├── main/
 │   │   │   ├── java/com/uai/audio_parse/
-│   │   │   │   ├── MainActivity.java          # 主界面
-│   │   │   │   ├── SettingsActivity.java      # 设置界面
-│   │   │   │   ├── AudioExtractor.java        # 音频提取器
-│   │   │   │   ├── SpeechRecognizer.java      # 语音识别器
-│   │   │   │   ├── ModelDownloader.java       # 模型下载器
-│   │   │   │   ├── PreferencesManager.java    # 偏好设置管理
-│   │   │   │   └── LLMClient.java             # LLM客户端
-│   │   │   ├── res/                           # 资源文件
+│   │   │   │   ├── MainActivity.java               # 主界面
+│   │   │   │   ├── SettingsActivity.java           # 设置界面
+│   │   │   │   ├── AudioExtractor.java             # 音频提取器
+│   │   │   │   ├── SpeechRecognizer.java           # 语音识别器
+│   │   │   │   ├── ModelDownloader.java            # 模型下载器
+│   │   │   │   ├── PreferencesManager.java         # 偏好设置管理
+│   │   │   │   ├── TranscriptionHistoryManager.java # 转写历史管理
+│   │   │   │   └── LLMClient.java                  # LLM客户端
+│   │   │   ├── res/                                # 资源文件
 │   │   │   └── AndroidManifest.xml
-│   │   └── test/                              # 测试代码
-│   └── build.gradle.kts                       # 模块构建配置
-├── gradle/                                    # Gradle配置
-├── build.gradle.kts                           # 项目构建配置
-└── settings.gradle.kts                        # 项目设置
+│   │   └── test/                                   # 测试代码
+│   └── build.gradle.kts                            # 模块构建配置
+├── gradle/                                         # Gradle配置
+├── build.gradle.kts                                # 项目构建配置
+└── settings.gradle.kts                             # 项目设置
 ```
 
 ## 🤝 贡献指南
@@ -233,6 +241,23 @@ audio_parse/
 ## 📄 开源协议
 
 本项目采用 MIT 协议开源，详见 [LICENSE](LICENSE) 文件。
+
+## 📦 第三方开源库声明
+
+本项目使用了以下开源库，感谢开源社区的贡献：
+
+| 库名 | 用途 | 许可证 | 项目地址 |
+|------|------|--------|----------|
+| Vosk | 离线语音识别引擎 | Apache 2.0 | https://github.com/alphacep/vosk-api |
+| OkHttp | HTTP网络请求 | Apache 2.0 | https://github.com/square/okhttp |
+| Material Components | Material Design UI组件 | Apache 2.0 | https://github.com/material-components/material-components-android |
+| Gson | JSON序列化/反序列化 | Apache 2.0 | https://github.com/google/gson |
+| Kotlin Coroutines | Kotlin协程库 | Apache 2.0 | https://github.com/Kotlin/kotlinx.coroutines |
+| AndroidX AppCompat | Android兼容性库 | Apache 2.0 | https://developer.android.com/jetpack/androidx |
+| AndroidX Lifecycle | 生命周期管理 | Apache 2.0 | https://developer.android.com/jetpack/androidx |
+| AndroidX ConstraintLayout | 约束布局 | Apache 2.0 | https://developer.android.com/jetpack/androidx |
+
+所有上述库均采用 Apache License 2.0 许可证，允许商业使用、修改和分发。
 
 ## 🙏 致谢
 
