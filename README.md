@@ -13,7 +13,7 @@
 
 ## ✨ 功能特性
 
-<img src="docs/images/product.png" width="300" alt="产品截图"/>
+<img src="audio_parse/docs/images/product.png" width="300" alt="产品截图"/>
 
 ### 核心功能
 - 🎥 **视频音频提取** - 支持从各种视频格式中提取音频
