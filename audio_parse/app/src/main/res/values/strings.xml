@@ -59,10 +59,18 @@
     <string name="model_downloaded">已下载</string>
     <string name="model_small">Vosk中文小模型 (50MB)</string>
     <string name="model_standard">Vosk中文标准模型 (1.3GB)</string>
-    <string name="model_multicn">Vosk中文多方言模型 (1.8GB)</string>
+    <string name="model_multicn">Vosk中文多方言模型 (1.5GB)</string>
     <string name="model_small_desc">速度快，准确率适中，适合快速转写</string>
     <string name="model_standard_desc">准确率高，速度较慢，适合正式场合</string>
     <string name="model_multicn_desc">支持多种中文方言，准确率最高，适合专业场景</string>
+    <string name="whisper_tiny">Whisper Tiny模型 (75MB)</string>
+    <string name="whisper_base">Whisper Base模型 (142MB)</string>
+    <string name="whisper_small">Whisper Small模型 (466MB)</string>
+    <string name="whisper_medium">Whisper Medium模型 (1.5GB)</string>
+    <string name="whisper_tiny_desc">最小模型，速度快，准确率较低</string>
+    <string name="whisper_base_desc">基础模型，平衡速度与准确率</string>
+    <string name="whisper_small_desc">推荐模型，准确率较高，支持中英文混合</string>
+    <string name="whisper_medium_desc">高精度模型，准确率最高</string>
     <string name="model_delete_confirm">确定要删除此模型吗？</string>
     <string name="model_delete_success">模型已删除</string>
     <string name="model_delete_failed">删除失败: %1$s</string>
@@ -90,10 +98,10 @@
     <string name="disclaimer_content">本项目由AI生成，仅供学习和参考使用。\n\n• 本项目完全由人工智能（AI）生成，开发者不对代码的正确性、安全性或适用性做任何保证。\n• 用户可以自由使用、修改和分发本项目，但需自行承担所有风险。\n• 开发者不对使用本项目产生的任何直接或间接损失负责。\n• 使用本项目前，请确保遵守当地法律法规。</string>
     
     <string name="features_title">✨ 功能特性</string>
-    <string name="features_content">核心功能：\n• 🎥 视频音频提取 - 支持从各种视频格式中提取音频\n• 🎤 离线语音识别 - 使用Vosk引擎，无需联网即可转写\n• 🤖 AI智能总结 - 支持接入大语言模型API进行文本总结\n• 📝 结果管理 - 支持复制、保存、分享转写结果\n• 💾 音频保存 - 可保存提取的音频文件\n• 📜 转写历史 - 自动保存最近10条转写记录\n\n软件优势：\n• 🔒 完全本地化 - 语音识别完全在本地运行，保护隐私安全\n• 🚫 无需注册 - 下载即可使用，无任何门槛\n• 🎯 无广告干扰 - 界面清爽，专注核心功能\n• 📖 功能精简 - 操作流程清晰，新手也能快速上手\n• 💰 免费使用 - 核心功能完全免费</string>
+    <string name="features_content">核心功能：\n• 🎥 视频音频提取 - 支持从各种视频格式中提取音频\n• 🎤 离线语音识别 - 支持Vosk和Whisper双引擎，无需联网即可转写\n• 🌐 中英文混合识别 - Whisper模型支持中英文混合识别，效果更佳\n• 🤖 AI智能总结 - 支持接入大语言模型API进行文本总结\n• 📝 结果管理 - 支持复制、保存、分享转写结果\n• 💾 音频保存 - 可保存提取的音频文件\n• 📜 转写历史 - 自动保存最近10条转写记录\n\n软件优势：\n• 🔒 完全本地化 - 语音识别完全在本地运行，保护隐私安全\n• 🚫 无需注册 - 下载即可使用，无任何门槛\n• 🎯 无广告干扰 - 界面清爽，专注核心功能\n• 📖 功能精简 - 操作流程清晰，新手也能快速上手\n• 💰 免费使用 - 核心功能完全免费</string>
     
     <string name="first_use_title">🚀 首次使用</string>
-    <string name="first_use_content">1. 下载语音模型\n   首次打开应用会提示下载模型，推荐使用"小模型"（50MB），速度快且准确率适中。\n\n2. 配置AI总结（可选）\n   进入设置页面，填写API URL（支持OpenAI兼容接口）、API Token和模型名称，点击"测试连接"验证配置。\n\n3. 开始使用\n   选择视频或音频文件，点击"开始转写"即可。</string>
+    <string name="first_use_content">1. 下载语音模型\n   首次打开应用会提示下载模型。\n   • Vosk模型：仅支持中文，推荐"小模型"（50MB）\n   • Whisper模型：支持中英文混合，推荐"Whisper Small"（466MB）\n\n2. 配置AI总结（可选）\n   进入设置页面，填写API URL（支持OpenAI兼容接口）、API Token和模型名称，点击"测试连接"验证配置。\n\n3. 开始使用\n   选择视频或音频文件，点击"开始转写"即可。</string>
     
     <string name="about_ai_summary_title">🤖 关于AI总结功能</string>
     <string name="about_ai_summary_content">• AI智能总结需要配置您自己的大模型API（支持OpenAI兼容接口）\n• 需要填写您自己的API Key，应用不会收集或上传您的密钥\n• AI总结功能需要联网调用大模型服务，会产生API调用费用\n• AI总结为可选功能，不配置不影响核心的语音转文字功能</string>
@@ -109,5 +117,5 @@
     
     <string name="open_source_licenses">开源许可证</string>
     <string name="licenses_title">第三方开源库</string>
-    <string name="licenses_content">本项目使用了以下开源库：\n\n• Vosk\n  离线语音识别引擎\n  Apache License 2.0\n  https://github.com/alphacep/vosk-api\n\n• OkHttp\n  HTTP网络请求库\n  Apache License 2.0\n  https://github.com/square/okhttp\n\n• Material Components\n  Material Design UI组件库\n  Apache License 2.0\n  https://github.com/material-components/material-components-android\n\n• Gson\n  JSON序列化库\n  Apache License 2.0\n  https://github.com/google/gson\n\n• Kotlin Coroutines\n  Kotlin协程库\n  Apache License 2.0\n  https://github.com/Kotlin/kotlinx.coroutines\n\n• AndroidX\n  Android兼容性库\n  Apache License 2.0\n  https://developer.android.com/jetpack/androidx\n\n所有上述库均采用 Apache License 2.0 许可证，允许商业使用、修改和分发。</string>
+    <string name="licenses_content">本项目使用了以下开源库：\n\n• Vosk\n  离线语音识别引擎\n  Apache License 2.0\n  https://github.com/alphacep/vosk-api\n\n• Whisper.cpp\n  Whisper语音识别C++实现\n  MIT License\n  https://github.com/ggerganov/whisper.cpp\n\n• ggml\n  机器学习张量库\n  MIT License\n  https://github.com/ggerganov/ggml\n\n• OkHttp\n  HTTP网络请求库\n  Apache License 2.0\n  https://github.com/square/okhttp\n\n• Material Components\n  Material Design UI组件库\n  Apache License 2.0\n  https://github.com/material-components/material-components-android\n\n• Gson\n  JSON序列化库\n  Apache License 2.0\n  https://github.com/google/gson\n\n• Kotlin Coroutines\n  Kotlin协程库\n  Apache License 2.0\n  https://github.com/Kotlin/kotlinx.coroutines\n\n• AndroidX\n  Android兼容性库\n  Apache License 2.0\n  https://developer.android.com/jetpack/androidx\n\n所有上述库均采用 Apache License 2.0 或 MIT 许可证，允许商业使用、修改和分发。</string>
 </resources>

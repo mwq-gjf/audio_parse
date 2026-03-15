@@ -37,6 +37,11 @@ public class ModelDownloader {
     private static final String MODEL_MULTICN_URL = "https://alphacephei.com/vosk/models/vosk-model-cn-kaldi-multicn-0.15.zip";
     private static final String MODEL_MULTICN_NAME = "vosk-model-cn-kaldi-multicn-0.15";
     
+    private static final String WHISPER_TINY_NAME = "ggml-tiny.bin";
+    private static final String WHISPER_BASE_NAME = "ggml-base.bin";
+    private static final String WHISPER_SMALL_NAME = "ggml-small.bin";
+    private static final String WHISPER_MEDIUM_NAME = "ggml-medium.bin";
+    
     private static final String MODELS_DIR_NAME = "TingJian_Models";
     
     private final OkHttpClient client;
@@ -46,14 +51,22 @@ public class ModelDownloader {
     public static final String[] SUPPORTED_MODELS = {
         "small",
         "standard",
-        "multicn"
+        "multicn",
+        "whisper_tiny",
+        "whisper_base",
+        "whisper_small",
+        "whisper_medium"
     };
     
     public static String[] getModelDisplayNames() {
         return new String[] {
             "Vosk中文小模型 (50MB)",
             "Vosk中文标准模型 (1.3GB)",
-            "Vosk中文多方言模型 (1.8GB)"
+            "Vosk中文多方言模型 (1.5GB)",
+            "Whisper Tiny模型 (75MB)",
+            "Whisper Base模型 (142MB)",
+            "Whisper Small模型 (466MB)",
+            "Whisper Medium模型 (1.5GB)"
         };
     }
     
@@ -85,11 +98,22 @@ public class ModelDownloader {
     }
     
     public boolean isModelDownloaded(String modelType) {
+        if (isWhisperModel(modelType)) {
+            String modelName = getModelName(modelType);
+            File whisperDir = new File(getModelsStorageDir(), "whisper");
+            File modelFile = new File(whisperDir, modelName);
+            return modelFile.exists();
+        }
+        
         String modelName = getModelName(modelType);
         File modelDir = new File(getModelsStorageDir(), modelName);
         File amDir = new File(modelDir, "am");
         File confFile = new File(modelDir, "conf");
         return amDir.exists() && confFile.exists();
+    }
+    
+    private boolean isWhisperModel(String modelType) {
+        return modelType.startsWith("whisper_");
     }
     
     public boolean isModelDownloaded() {
@@ -98,6 +122,10 @@ public class ModelDownloader {
     
     public String getModelPath(String modelType) {
         String modelName = getModelName(modelType);
+        if (isWhisperModel(modelType)) {
+            File whisperDir = new File(getModelsStorageDir(), "whisper");
+            return new File(whisperDir, modelName).getAbsolutePath();
+        }
         return new File(getModelsStorageDir(), modelName).getAbsolutePath();
     }
     
@@ -111,20 +139,21 @@ public class ModelDownloader {
                 return MODEL_STANDARD_NAME;
             case PreferencesManager.MODEL_TYPE_MULTICN:
                 return MODEL_MULTICN_NAME;
+            case PreferencesManager.WHISPER_MODEL_TINY:
+                return WHISPER_TINY_NAME;
+            case PreferencesManager.WHISPER_MODEL_BASE:
+                return WHISPER_BASE_NAME;
+            case PreferencesManager.WHISPER_MODEL_SMALL:
+                return WHISPER_SMALL_NAME;
+            case PreferencesManager.WHISPER_MODEL_MEDIUM:
+                return WHISPER_MEDIUM_NAME;
             default:
                 return MODEL_SMALL_NAME;
         }
     }
     
     public String getModelUrl(String modelType) {
-        switch (modelType) {
-            case PreferencesManager.MODEL_TYPE_STANDARD:
-                return MODEL_STANDARD_URL;
-            case PreferencesManager.MODEL_TYPE_MULTICN:
-                return MODEL_MULTICN_URL;
-            default:
-                return MODEL_SMALL_URL;
-        }
+        return null;
     }
     
     public String getModelDisplayName(String modelType) {
@@ -133,6 +162,14 @@ public class ModelDownloader {
                 return "Vosk中文标准模型";
             case PreferencesManager.MODEL_TYPE_MULTICN:
                 return "Vosk中文多方言模型";
+            case PreferencesManager.WHISPER_MODEL_TINY:
+                return "Whisper Tiny模型";
+            case PreferencesManager.WHISPER_MODEL_BASE:
+                return "Whisper Base模型";
+            case PreferencesManager.WHISPER_MODEL_SMALL:
+                return "Whisper Small模型";
+            case PreferencesManager.WHISPER_MODEL_MEDIUM:
+                return "Whisper Medium模型";
             default:
                 return "Vosk中文小模型";
         }
@@ -142,6 +179,12 @@ public class ModelDownloader {
         new Thread(() -> {
             try {
                 String modelName = getModelName(modelType);
+                
+                if (isWhisperModel(modelType)) {
+                    callback.onError("请使用设置页面的下载功能下载Whisper模型");
+                    return;
+                }
+                
                 String modelUrl = getModelUrl(modelType);
                 
                 File modelDir = new File(getModelsStorageDir(), modelName);
@@ -251,6 +294,15 @@ public class ModelDownloader {
     
     public boolean deleteModel(String modelType) {
         String modelName = getModelName(modelType);
+        if (isWhisperModel(modelType)) {
+            File whisperDir = new File(getModelsStorageDir(), "whisper");
+            File modelFile = new File(whisperDir, modelName);
+            if (modelFile.exists()) {
+                return modelFile.delete();
+            }
+            return false;
+        }
+        
         File modelDir = new File(getModelsStorageDir(), modelName);
         if (modelDir.exists()) {
             deleteDirectory(modelDir);

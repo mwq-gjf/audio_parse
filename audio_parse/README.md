@@ -15,7 +15,8 @@
 
 ### 核心功能
 - 🎥 **视频音频提取** - 支持从各种视频格式中提取音频
-- 🎤 **离线语音识别** - 使用Vosk引擎，无需联网即可转写
+- 🎤 **离线语音识别** - 支持Vosk和Whisper双引擎，无需联网即可转写
+- 🌐 **中英文混合识别** - Whisper模型支持中英文混合识别，效果更佳
 - 🤖 **AI智能总结** - 支持接入大语言模型API进行文本总结
 - 📝 **结果管理** - 支持复制、保存、分享转写结果
 - 💾 **音频保存** - 可保存提取的音频文件
@@ -25,7 +26,8 @@
 - 📱 **Material Design** - 现代化的UI设计
 - 🔄 **实时进度** - 显示转写和下载进度
 - 📊 **长音频处理** - 支持分段处理长音频文件
-- 🎯 **多模型支持** - 提供三种不同大小的语音识别模型
+- 🎯 **多模型支持** - 提供Vosk和Whisper两种引擎，多种模型可选
+- 🔧 **后台下载** - 支持模型后台下载，不影响正常使用
 
 ### 软件优势
 - 🔒 **完全本地化** - 语音识别完全在本地运行，无需上传数据到服务器，保护隐私安全
@@ -42,13 +44,14 @@
 
 ## 🛠️ 技术栈
 
-- **开发语言**: Java
-- **最低SDK**: Android 5.0 (API 21)
-- **目标SDK**: Android 13 (API 33)
-- **语音识别**: Vosk Android SDK
+- **开发语言**: Java, C++
+- **最低SDK**: Android 8.0 (API 26)
+- **目标SDK**: Android 14 (API 36)
+- **语音识别**: Vosk Android SDK, Whisper.cpp
 - **音频处理**: MediaCodec, MediaExtractor
 - **网络请求**: OkHttp
 - **UI框架**: Material Design Components
+- **NDK**: 用于Whisper原生库编译
 
 ## 📋 环境要求
 
@@ -58,11 +61,26 @@
 - Gradle 7.0 或更高版本
 
 ### 运行环境
-- Android 5.0 (API 21) 或更高版本
+- Android 8.0 (API 26) 或更高版本
 - 至少 100MB 可用存储空间（用于模型）
 - 建议使用 ARM64 架构设备
+- 需要NDK支持Whisper功能（详见 [NDK构建说明](docs/WHISPER_NDK_BUILD.md)）
 
 ## 🚀 安装与打包
+
+### 前置要求
+
+1. **安装NDK和CMake**（用于Whisper功能）
+   - 在Android Studio中打开 `Tools` -> `SDK Manager`
+   - 选择 `SDK Tools` 标签
+   - 勾选 `NDK (Side by side)` 和 `CMake`
+   - 点击 `Apply` 进行安装
+
+2. **下载Whisper源码**
+   ```bash
+   chmod +x scripts/download_whisper.sh
+   ./scripts/download_whisper.sh
+   ```
 
 ### 从源码构建
 
@@ -197,11 +215,27 @@ android {
 
 ### 模型说明
 
+#### Vosk 模型（仅中文）
+
 | 模型 | 大小 | 特点 | 适用场景 |
 |------|------|------|----------|
 | 小模型 | 50MB | 速度快，准确率适中 | 快速转写，日常使用 |
 | 标准模型 | 1.3GB | 准确率高，速度较慢 | 正式场合，重要内容 |
-| 多方言模型 | 1.8GB | 支持多种方言，准确率最高 | 专业场景，方言识别 |
+| 多方言模型 | 1.5GB | 支持多种方言，准确率最高 | 专业场景，方言识别 |
+
+#### Whisper 模型（支持中英文混合，推荐）
+
+| 模型 | 大小 | 特点 | 适用场景 |
+|------|------|------|----------|
+| Whisper Tiny | 75MB | 最小模型，速度快，准确率较低 | 快速预览 |
+| Whisper Base | 142MB | 基础模型，平衡速度与准确率 | 日常使用 |
+| Whisper Small | 466MB | 推荐模型，准确率较高 | 中英文混合场景 |
+| Whisper Medium | 1.5GB | 高精度模型，准确率最高 | 专业场景 |
+
+**推荐使用Whisper模型**，因为：
+- 支持中英文混合识别，效果更好
+- 对英文识别准确率更高
+- 模型大小适中，性能优秀
 
 ## 🏗️ 项目结构
 
@@ -214,11 +248,17 @@ audio_parse/
 │   │   │   │   ├── MainActivity.java               # 主界面
 │   │   │   │   ├── SettingsActivity.java           # 设置界面
 │   │   │   │   ├── AudioExtractor.java             # 音频提取器
-│   │   │   │   ├── SpeechRecognizer.java           # 语音识别器
+│   │   │   │   ├── SpeechRecognizer.java           # Vosk语音识别器
+│   │   │   │   ├── WhisperRecognizer.java          # Whisper语音识别器
 │   │   │   │   ├── ModelDownloader.java            # 模型下载器
+│   │   │   │   ├── ModelDownloadService.java       # 后台下载服务
 │   │   │   │   ├── PreferencesManager.java         # 偏好设置管理
 │   │   │   │   ├── TranscriptionHistoryManager.java # 转写历史管理
 │   │   │   │   └── LLMClient.java                  # LLM客户端
+│   │   │   ├── cpp/                                # Whisper原生代码
+│   │   │   │   ├── whisper_jni.cpp                 # JNI接口
+│   │   │   │   ├── whisper.cpp                     # Whisper核心代码
+│   │   │   │   └── CMakeLists.txt                  # CMake配置
 │   │   │   ├── res/                                # 资源文件
 │   │   │   └── AndroidManifest.xml
 │   │   └── test/                                   # 测试代码
@@ -249,6 +289,8 @@ audio_parse/
 | 库名 | 用途 | 许可证 | 项目地址 |
 |------|------|--------|----------|
 | Vosk | 离线语音识别引擎 | Apache 2.0 | https://github.com/alphacep/vosk-api |
+| Whisper.cpp | Whisper语音识别C++实现 | MIT | https://github.com/ggerganov/whisper.cpp |
+| ggml | 机器学习张量库 | MIT | https://github.com/ggerganov/ggml |
 | OkHttp | HTTP网络请求 | Apache 2.0 | https://github.com/square/okhttp |
 | Material Components | Material Design UI组件 | Apache 2.0 | https://github.com/material-components/material-components-android |
 | Gson | JSON序列化/反序列化 | Apache 2.0 | https://github.com/google/gson |
@@ -257,11 +299,13 @@ audio_parse/
 | AndroidX Lifecycle | 生命周期管理 | Apache 2.0 | https://developer.android.com/jetpack/androidx |
 | AndroidX ConstraintLayout | 约束布局 | Apache 2.0 | https://developer.android.com/jetpack/androidx |
 
-所有上述库均采用 Apache License 2.0 许可证，允许商业使用、修改和分发。
+所有上述库均采用 Apache License 2.0 或 MIT 许可证，允许商业使用、修改和分发。
 
 ## 🙏 致谢
 
 - [Vosk](https://alphacephei.com/vosk/) - 离线语音识别引擎
+- [Whisper.cpp](https://github.com/ggerganov/whisper.cpp) - Whisper C++实现
+- [OpenAI Whisper](https://github.com/openai/whisper) - OpenAI Whisper模型
 - [Material Design Components](https://material.io/develop/android) - UI组件库
 - [OkHttp](https://square.github.io/okhttp/) - 网络请求库
 

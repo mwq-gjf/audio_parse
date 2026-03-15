@@ -57,6 +57,18 @@ public class ModelDownloadService extends Service {
     private static final String MODEL_MULTICN_URL = "https://alphacephei.com/vosk/models/vosk-model-cn-kaldi-multicn-0.15.zip";
     private static final String MODEL_MULTICN_NAME = "vosk-model-cn-kaldi-multicn-0.15";
     
+    private static final String WHISPER_TINY_URL = "https://ggml.ggerganov.com/ggml-model-whisper-tiny.bin";
+    private static final String WHISPER_TINY_NAME = "ggml-tiny.bin";
+    
+    private static final String WHISPER_BASE_URL = "https://ggml.ggerganov.com/ggml-model-whisper-base.bin";
+    private static final String WHISPER_BASE_NAME = "ggml-base.bin";
+    
+    private static final String WHISPER_SMALL_URL = "https://ggml.ggerganov.com/ggml-model-whisper-small.bin";
+    private static final String WHISPER_SMALL_NAME = "ggml-small.bin";
+    
+    private static final String WHISPER_MEDIUM_URL = "https://ggml.ggerganov.com/ggml-model-whisper-medium.bin";
+    private static final String WHISPER_MEDIUM_NAME = "ggml-medium.bin";
+    
     private static final String MODELS_DIR_NAME = "TingJian_Models";
     private static final String PREF_NAME = "model_download_prefs";
     private static final String KEY_DOWNLOADING_MODEL = "downloading_model";
@@ -150,7 +162,82 @@ public class ModelDownloadService extends Service {
         String modelName = getModelName(modelType);
         String modelUrl = getModelUrl(modelType);
         String displayName = getModelDisplayName(modelType);
+        boolean isWhisper = isWhisperModel(modelType);
         
+        if (isWhisper) {
+            downloadWhisperModel(modelType, modelName, modelUrl, displayName);
+        } else {
+            downloadVoskModel(modelType, modelName, modelUrl, displayName);
+        }
+    }
+    
+    private void downloadWhisperModel(String modelType, String modelName, String modelUrl, String displayName) throws IOException {
+        File whisperDir = new File(getModelsStorageDir(), "whisper");
+        if (!whisperDir.exists()) {
+            whisperDir.mkdirs();
+        }
+        
+        File modelFile = new File(whisperDir, modelName);
+        if (modelFile.exists()) {
+            modelFile.delete();
+        }
+        
+        Request request = new Request.Builder()
+                .url(modelUrl)
+                .build();
+        
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                throw new IOException("下载失败: " + response.code());
+            }
+            
+            long contentLength = response.body().contentLength();
+            InputStream inputStream = response.body().byteStream();
+            FileOutputStream outputStream = new FileOutputStream(modelFile);
+            
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+            long totalBytes = 0;
+            int lastProgress = 0;
+            
+            while ((bytesRead = inputStream.read(buffer)) != -1 && !isCancelled) {
+                outputStream.write(buffer, 0, bytesRead);
+                totalBytes += bytesRead;
+                
+                if (contentLength > 0) {
+                    int progress = (int) ((totalBytes * 100) / contentLength);
+                    if (progress != lastProgress) {
+                        lastProgress = progress;
+                        updateNotification(progress, "下载中 " + displayName + " (" + progress + "%)");
+                        sendProgressBroadcast(progress, "下载中...");
+                    }
+                }
+            }
+            
+            outputStream.close();
+            inputStream.close();
+            
+            if (isCancelled) {
+                modelFile.delete();
+                throw new IOException("下载已取消");
+            }
+            
+            String modelPath = modelFile.getAbsolutePath();
+            
+            updateNotification(100, displayName + " 下载完成");
+            sendCompleteBroadcast(modelPath, modelType);
+            clearDownloadingModel();
+            
+            new PreferencesManager(this).saveSelectedModelType(modelType);
+            new PreferencesManager(this).saveModelPath(modelPath);
+            new PreferencesManager(this).saveEngineType(PreferencesManager.ENGINE_WHISPER);
+            
+            stopForeground(true);
+            stopSelf();
+        }
+    }
+    
+    private void downloadVoskModel(String modelType, String modelName, String modelUrl, String displayName) throws IOException {
         File modelDir = new File(getModelsStorageDir(), modelName);
         if (modelDir.exists()) {
             deleteDirectory(modelDir);
@@ -264,6 +351,7 @@ public class ModelDownloadService extends Service {
         
         new PreferencesManager(this).saveSelectedModelType(modelType);
         new PreferencesManager(this).saveModelPath(modelPath);
+        new PreferencesManager(this).saveEngineType(PreferencesManager.ENGINE_VOSK);
         
         stopForeground(true);
         stopSelf();
@@ -328,7 +416,14 @@ public class ModelDownloadService extends Service {
     
     private String getModelPath(String modelType) {
         String modelName = getModelName(modelType);
+        if (isWhisperModel(modelType)) {
+            return new File(getModelsStorageDir(), "whisper/" + modelName).getAbsolutePath();
+        }
         return new File(getModelsStorageDir(), modelName).getAbsolutePath();
+    }
+    
+    private boolean isWhisperModel(String modelType) {
+        return modelType.startsWith("whisper_");
     }
     
     private String getModelName(String modelType) {
@@ -337,6 +432,14 @@ public class ModelDownloadService extends Service {
                 return MODEL_STANDARD_NAME;
             case PreferencesManager.MODEL_TYPE_MULTICN:
                 return MODEL_MULTICN_NAME;
+            case PreferencesManager.WHISPER_MODEL_TINY:
+                return WHISPER_TINY_NAME;
+            case PreferencesManager.WHISPER_MODEL_BASE:
+                return WHISPER_BASE_NAME;
+            case PreferencesManager.WHISPER_MODEL_SMALL:
+                return WHISPER_SMALL_NAME;
+            case PreferencesManager.WHISPER_MODEL_MEDIUM:
+                return WHISPER_MEDIUM_NAME;
             default:
                 return MODEL_SMALL_NAME;
         }
@@ -348,6 +451,14 @@ public class ModelDownloadService extends Service {
                 return MODEL_STANDARD_URL;
             case PreferencesManager.MODEL_TYPE_MULTICN:
                 return MODEL_MULTICN_URL;
+            case PreferencesManager.WHISPER_MODEL_TINY:
+                return WHISPER_TINY_URL;
+            case PreferencesManager.WHISPER_MODEL_BASE:
+                return WHISPER_BASE_URL;
+            case PreferencesManager.WHISPER_MODEL_SMALL:
+                return WHISPER_SMALL_URL;
+            case PreferencesManager.WHISPER_MODEL_MEDIUM:
+                return WHISPER_MEDIUM_URL;
             default:
                 return MODEL_SMALL_URL;
         }
@@ -359,6 +470,14 @@ public class ModelDownloadService extends Service {
                 return "Vosk中文标准模型";
             case PreferencesManager.MODEL_TYPE_MULTICN:
                 return "Vosk中文多方言模型";
+            case PreferencesManager.WHISPER_MODEL_TINY:
+                return "Whisper Tiny模型";
+            case PreferencesManager.WHISPER_MODEL_BASE:
+                return "Whisper Base模型";
+            case PreferencesManager.WHISPER_MODEL_SMALL:
+                return "Whisper Small模型";
+            case PreferencesManager.WHISPER_MODEL_MEDIUM:
+                return "Whisper Medium模型";
             default:
                 return "Vosk中文小模型";
         }

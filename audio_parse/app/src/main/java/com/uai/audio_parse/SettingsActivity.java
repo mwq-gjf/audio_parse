@@ -45,6 +45,18 @@ public class SettingsActivity extends AppCompatActivity {
     private CardView multicnModelCard;
     private TextView multicnModelStatusTextView;
     private ImageView multicnModelCheckIcon;
+    private CardView whisperTinyModelCard;
+    private TextView whisperTinyModelStatusTextView;
+    private ImageView whisperTinyModelCheckIcon;
+    private CardView whisperBaseModelCard;
+    private TextView whisperBaseModelStatusTextView;
+    private ImageView whisperBaseModelCheckIcon;
+    private CardView whisperSmallModelCard;
+    private TextView whisperSmallModelStatusTextView;
+    private ImageView whisperSmallModelCheckIcon;
+    private CardView whisperMediumModelCard;
+    private TextView whisperMediumModelStatusTextView;
+    private ImageView whisperMediumModelCheckIcon;
     
     private PreferencesManager preferencesManager;
     private ModelDownloader modelDownloader;
@@ -127,6 +139,24 @@ public class SettingsActivity extends AppCompatActivity {
         smallModelCard.setOnClickListener(v -> handleModelCardClick(PreferencesManager.MODEL_TYPE_SMALL));
         standardModelCard.setOnClickListener(v -> handleModelCardClick(PreferencesManager.MODEL_TYPE_STANDARD));
         multicnModelCard.setOnClickListener(v -> handleModelCardClick(PreferencesManager.MODEL_TYPE_MULTICN));
+        
+        whisperTinyModelCard = findViewById(R.id.whisperTinyModelCard);
+        whisperTinyModelStatusTextView = findViewById(R.id.whisperTinyModelStatusTextView);
+        whisperTinyModelCheckIcon = findViewById(R.id.whisperTinyModelCheckIcon);
+        whisperBaseModelCard = findViewById(R.id.whisperBaseModelCard);
+        whisperBaseModelStatusTextView = findViewById(R.id.whisperBaseModelStatusTextView);
+        whisperBaseModelCheckIcon = findViewById(R.id.whisperBaseModelCheckIcon);
+        whisperSmallModelCard = findViewById(R.id.whisperSmallModelCard);
+        whisperSmallModelStatusTextView = findViewById(R.id.whisperSmallModelStatusTextView);
+        whisperSmallModelCheckIcon = findViewById(R.id.whisperSmallModelCheckIcon);
+        whisperMediumModelCard = findViewById(R.id.whisperMediumModelCard);
+        whisperMediumModelStatusTextView = findViewById(R.id.whisperMediumModelStatusTextView);
+        whisperMediumModelCheckIcon = findViewById(R.id.whisperMediumModelCheckIcon);
+        
+        whisperTinyModelCard.setOnClickListener(v -> handleModelCardClick(PreferencesManager.WHISPER_MODEL_TINY));
+        whisperBaseModelCard.setOnClickListener(v -> handleModelCardClick(PreferencesManager.WHISPER_MODEL_BASE));
+        whisperSmallModelCard.setOnClickListener(v -> handleModelCardClick(PreferencesManager.WHISPER_MODEL_SMALL));
+        whisperMediumModelCard.setOnClickListener(v -> handleModelCardClick(PreferencesManager.WHISPER_MODEL_MEDIUM));
     }
     
     private void initManagers() {
@@ -148,6 +178,11 @@ public class SettingsActivity extends AppCompatActivity {
         updateModelItem(PreferencesManager.MODEL_TYPE_SMALL, smallModelStatusTextView, smallModelCheckIcon);
         updateModelItem(PreferencesManager.MODEL_TYPE_STANDARD, standardModelStatusTextView, standardModelCheckIcon);
         updateModelItem(PreferencesManager.MODEL_TYPE_MULTICN, multicnModelStatusTextView, multicnModelCheckIcon);
+        
+        updateModelItem(PreferencesManager.WHISPER_MODEL_TINY, whisperTinyModelStatusTextView, whisperTinyModelCheckIcon);
+        updateModelItem(PreferencesManager.WHISPER_MODEL_BASE, whisperBaseModelStatusTextView, whisperBaseModelCheckIcon);
+        updateModelItem(PreferencesManager.WHISPER_MODEL_SMALL, whisperSmallModelStatusTextView, whisperSmallModelCheckIcon);
+        updateModelItem(PreferencesManager.WHISPER_MODEL_MEDIUM, whisperMediumModelStatusTextView, whisperMediumModelCheckIcon);
     }
     
     private void updateModelItem(String modelType, TextView statusTextView, ImageView checkIcon) {

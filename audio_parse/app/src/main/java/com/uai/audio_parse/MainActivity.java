@@ -69,6 +69,7 @@ public class MainActivity extends AppCompatActivity {
     private PreferencesManager preferencesManager;
     private AudioExtractor audioExtractor;
     private SpeechRecognizer speechRecognizer;
+    private WhisperRecognizer whisperRecognizer;
     private ModelDownloader modelDownloader;
     private LLMClient llmClient;
     private TranscriptionHistoryManager historyManager;
@@ -418,83 +419,11 @@ public class MainActivity extends AppCompatActivity {
                 
                 extractedAudioPath = audioPath;
                 
-                runOnUiThread(() -> {
-                    String stepText = getString(R.string.converting_audio);
-                    progressTextView.setText(getString(R.string.progress_detail, stepText, 0));
-                });
-                
-                String modelPath = modelDownloader.getModelPath(selectedModelType);
-                speechRecognizer = new SpeechRecognizer(this, 
-                        modelPath,
-                        new SpeechRecognizer.RecognitionCallback() {
-                            @Override
-                            public void onPartialResult(String partial) {
-                                runOnUiThread(() -> {
-                                    if (!isShowingSummary) {
-                                        resultTextView.setText(transcribedText + partial);
-                                    }
-                                });
-                            }
-                            
-                            @Override
-                            public void onFinalResult(String result) {
-                                transcribedText += result + "\n";
-                                runOnUiThread(() -> {
-                                    if (!isShowingSummary) {
-                                        resultTextView.setText(transcribedText);
-                                    }
-                                });
-                            }
-                            
-                            @Override
-                            public void onComplete(String fullResult) {
-                                runOnUiThread(() -> {
-                                    isTranscribing = false;
-                                    buttonAnimationHandler.removeCallbacks(buttonAnimationRunnable);
-                                    transcribedText = fullResult;
-                                    if (!isShowingSummary) {
-                                        resultTextView.setText(fullResult);
-                                    }
-                                    progressBar.setVisibility(View.GONE);
-                                    progressTextView.setVisibility(View.GONE);
-                                    transcribeButton.setEnabled(true);
-                                    transcribeButton.setText(R.string.start_transcribe);
-                                    
-                                    if (!fullResult.isEmpty()) {
-                                        historyManager.addHistory(selectedFileName, fullResult, "");
-                                    }
-                                    
-                                    Toast.makeText(MainActivity.this, 
-                                            R.string.transcribe_complete, Toast.LENGTH_SHORT).show();
-                                });
-                            }
-                            
-                            @Override
-                            public void onError(String error) {
-                                runOnUiThread(() -> {
-                                    isTranscribing = false;
-                                    buttonAnimationHandler.removeCallbacks(buttonAnimationRunnable);
-                                    progressBar.setVisibility(View.GONE);
-                                    progressTextView.setVisibility(View.GONE);
-                                    transcribeButton.setEnabled(true);
-                                    transcribeButton.setText(R.string.start_transcribe);
-                                    Toast.makeText(MainActivity.this, 
-                                            "转写失败: " + error, Toast.LENGTH_LONG).show();
-                                });
-                            }
-                            
-                            @Override
-                            public void onProgress(int progress) {
-                                runOnUiThread(() -> {
-                                    int totalProgress = 33 + (progress * 2 / 3);
-                                    progressBar.setProgress(totalProgress);
-                                    String stepText = getString(R.string.converting_audio);
-                                    progressTextView.setText(getString(R.string.progress_detail, stepText, progress));
-                                });
-                            }
-                        });
-                
-                speechRecognizer.recognizeFile(audioPath);
+                if (preferencesManager.isWhisperEngine()) {
+                    transcribeWithWhisper(audioPath);
+                } else {
+                    transcribeWithVosk(audioPath);
+                }
                 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -510,6 +439,160 @@ public class MainActivity extends AppCompatActivity {
                 });
             }
         }).start();
+    }
+    
+    private void transcribeWithVosk(String audioPath) {
+        runOnUiThread(() -> {
+            String stepText = getString(R.string.converting_audio);
+            progressTextView.setText(getString(R.string.progress_detail, stepText, 0));
+        });
+        
+        String selectedModelType = preferencesManager.getSelectedModelType();
+        String modelPath = modelDownloader.getModelPath(selectedModelType);
+        
+        try {
+            speechRecognizer = new SpeechRecognizer(this, 
+                    modelPath,
+                    new SpeechRecognizer.RecognitionCallback() {
+                        @Override
+                        public void onPartialResult(String partial) {
+                            runOnUiThread(() -> {
+                                if (!isShowingSummary) {
+                                    resultTextView.setText(transcribedText + partial);
+                                }
+                            });
+                        }
+                        
+                        @Override
+                        public void onFinalResult(String result) {
+                            transcribedText += result + "\n";
+                            runOnUiThread(() -> {
+                                if (!isShowingSummary) {
+                                    resultTextView.setText(transcribedText);
+                                }
+                            });
+                        }
+                        
+                        @Override
+                        public void onComplete(String fullResult) {
+                            runOnUiThread(() -> {
+                                isTranscribing = false;
+                                buttonAnimationHandler.removeCallbacks(buttonAnimationRunnable);
+                                transcribedText = fullResult;
+                                if (!isShowingSummary) {
+                                    resultTextView.setText(fullResult);
+                                }
+                                progressBar.setVisibility(View.GONE);
+                                progressTextView.setVisibility(View.GONE);
+                                transcribeButton.setEnabled(true);
+                                transcribeButton.setText(R.string.start_transcribe);
+                                
+                                if (!fullResult.isEmpty()) {
+                                    historyManager.addHistory(selectedFileName, fullResult, "");
+                                }
+                                
+                                Toast.makeText(MainActivity.this, 
+                                        R.string.transcribe_complete, Toast.LENGTH_SHORT).show();
+                            });
+                        }
+                        
+                        @Override
+                        public void onError(String error) {
+                            runOnUiThread(() -> {
+                                isTranscribing = false;
+                                buttonAnimationHandler.removeCallbacks(buttonAnimationRunnable);
+                                progressBar.setVisibility(View.GONE);
+                                progressTextView.setVisibility(View.GONE);
+                                transcribeButton.setEnabled(true);
+                                transcribeButton.setText(R.string.start_transcribe);
+                                Toast.makeText(MainActivity.this, 
+                                        "转写失败: " + error, Toast.LENGTH_LONG).show();
+                            });
+                        }
+                        
+                        @Override
+                        public void onProgress(int progress) {
+                            runOnUiThread(() -> {
+                                int totalProgress = 33 + (progress * 2 / 3);
+                                progressBar.setProgress(totalProgress);
+                                String stepText = getString(R.string.converting_audio);
+                                progressTextView.setText(getString(R.string.progress_detail, stepText, progress));
+                            });
+                        }
+                    });
+            
+            speechRecognizer.recognizeFile(audioPath);
+        } catch (IOException e) {
+            e.printStackTrace();
+            runOnUiThread(() -> {
+                isTranscribing = false;
+                buttonAnimationHandler.removeCallbacks(buttonAnimationRunnable);
+                progressBar.setVisibility(View.GONE);
+                progressTextView.setVisibility(View.GONE);
+                transcribeButton.setEnabled(true);
+                transcribeButton.setText(R.string.start_transcribe);
+                Toast.makeText(MainActivity.this, 
+                        "转写失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            });
+        }
+    }
+    
+    private void transcribeWithWhisper(String audioPath) {
+        runOnUiThread(() -> {
+            progressTextView.setText("加载Whisper模型...");
+        });
+        
+        String selectedModelType = preferencesManager.getSelectedModelType();
+        String modelPath = modelDownloader.getModelPath(selectedModelType);
+        
+        if (whisperRecognizer == null) {
+            whisperRecognizer = new WhisperRecognizer();
+        }
+        
+        if (!whisperRecognizer.isModelLoaded() || 
+            !modelPath.equals(whisperRecognizer.getModelPath())) {
+            boolean loaded = whisperRecognizer.loadModel(modelPath);
+            if (!loaded) {
+                runOnUiThread(() -> {
+                    isTranscribing = false;
+                    buttonAnimationHandler.removeCallbacks(buttonAnimationRunnable);
+                    progressBar.setVisibility(View.GONE);
+                    progressTextView.setVisibility(View.GONE);
+                    transcribeButton.setEnabled(true);
+                    transcribeButton.setText(R.string.start_transcribe);
+                    Toast.makeText(MainActivity.this, 
+                            "Whisper模型加载失败", Toast.LENGTH_LONG).show();
+                });
+                return;
+            }
+        }
+        
+        runOnUiThread(() -> {
+            progressTextView.setText("Whisper转写中...");
+            progressBar.setProgress(50);
+        });
+        
+        String result = whisperRecognizer.transcribe(audioPath, WhisperRecognizer.LANG_AUTO);
+        
+        runOnUiThread(() -> {
+            isTranscribing = false;
+            buttonAnimationHandler.removeCallbacks(buttonAnimationRunnable);
+            transcribedText = result;
+            if (!isShowingSummary) {
+                resultTextView.setText(result);
+            }
+            progressBar.setVisibility(View.GONE);
+            progressTextView.setVisibility(View.GONE);
+            transcribeButton.setEnabled(true);
+            transcribeButton.setText(R.string.start_transcribe);
+            
+            if (result != null && !result.isEmpty()) {
+                historyManager.addHistory(selectedFileName, result, "");
+            }
+            
+            Toast.makeText(MainActivity.this, 
+                    R.string.transcribe_complete, Toast.LENGTH_SHORT).show();
+        });
     }
     
     private void stopTranscription() {

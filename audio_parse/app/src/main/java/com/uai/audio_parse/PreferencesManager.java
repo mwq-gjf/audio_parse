@@ -21,10 +21,19 @@ public class PreferencesManager {
     private static final String KEY_SPEECH_API_URL = "speech_api_url";
     private static final String KEY_SPEECH_API_TOKEN = "speech_api_token";
     private static final String KEY_USE_ONLINE_SPEECH = "use_online_speech";
+    private static final String KEY_ENGINE_TYPE = "engine_type";
     
     public static final String MODEL_TYPE_SMALL = "small";
     public static final String MODEL_TYPE_STANDARD = "standard";
     public static final String MODEL_TYPE_MULTICN = "multicn";
+    
+    public static final String ENGINE_VOSK = "vosk";
+    public static final String ENGINE_WHISPER = "whisper";
+    
+    public static final String WHISPER_MODEL_TINY = "whisper_tiny";
+    public static final String WHISPER_MODEL_BASE = "whisper_base";
+    public static final String WHISPER_MODEL_SMALL = "whisper_small";
+    public static final String WHISPER_MODEL_MEDIUM = "whisper_medium";
     
     private final SharedPreferences sharedPreferences;
     
@@ -108,5 +117,19 @@ public class PreferencesManager {
     
     public boolean getUseOnlineSpeech() {
         return sharedPreferences.getBoolean(KEY_USE_ONLINE_SPEECH, false);
+    }
+    
+    public void saveEngineType(String engineType) {
+        sharedPreferences.edit()
+                .putString(KEY_ENGINE_TYPE, engineType)
+                .apply();
+    }
+    
+    public String getEngineType() {
+        return sharedPreferences.getString(KEY_ENGINE_TYPE, ENGINE_VOSK);
+    }
+    
+    public boolean isWhisperEngine() {
+        return ENGINE_WHISPER.equals(getEngineType());
     }
 }
