@@ -63,7 +63,7 @@ public class SettingsActivity extends AppCompatActivity {
                     progressDialog.setProgress(progress);
                     String modelName = modelDownloader.getModelDisplayName(downloadingModelType);
                     String sizeHint = PreferencesManager.MODEL_TYPE_STANDARD.equals(downloadingModelType) ? "1.3GB" : 
-                                     PreferencesManager.MODEL_TYPE_MULTICN.equals(downloadingModelType) ? "1.8GB" : "50MB";
+                                     PreferencesManager.MODEL_TYPE_MULTICN.equals(downloadingModelType) ? "1.5GB" : "50MB";
                     if (progress < 50) {
                         progressDialog.setMessage(getString(R.string.model_download_progress, progress * 2) + "\n" + modelName + " (" + sizeHint + ")");
                     } else {
@@ -211,7 +211,7 @@ public class SettingsActivity extends AppCompatActivity {
     private void showDownloadProgressDialog(String modelType) {
         String modelName = modelDownloader.getModelDisplayName(modelType);
         String sizeHint = PreferencesManager.MODEL_TYPE_STANDARD.equals(modelType) ? "1.3GB" : 
-                         PreferencesManager.MODEL_TYPE_MULTICN.equals(modelType) ? "1.8GB" : "50MB";
+                         PreferencesManager.MODEL_TYPE_MULTICN.equals(modelType) ? "1.5GB" : "50MB";
         
         progressDialog = new ProgressDialog(this);
         progressDialog.setMessage(getString(R.string.model_download_progress, 0) + "\n" + modelName + " (" + sizeHint + ")");

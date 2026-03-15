@@ -54,8 +54,8 @@ public class ModelDownloadService extends Service {
     private static final String MODEL_STANDARD_URL = "https://alphacephei.com/vosk/models/vosk-model-cn-0.22.zip";
     private static final String MODEL_STANDARD_NAME = "vosk-model-cn-0.22";
     
-    private static final String MODEL_MULTICN_URL = "https://alphacephei.com/vosk/models/vosk-model-cn-0.22-zh-cn.zip";
-    private static final String MODEL_MULTICN_NAME = "vosk-model-cn-0.22-zh-cn";
+    private static final String MODEL_MULTICN_URL = "https://alphacephei.com/vosk/models/vosk-model-cn-kaldi-multicn-0.15.zip";
+    private static final String MODEL_MULTICN_NAME = "vosk-model-cn-kaldi-multicn-0.15";
     
     private static final String MODELS_DIR_NAME = "TingJian_Models";
     private static final String PREF_NAME = "model_download_prefs";
