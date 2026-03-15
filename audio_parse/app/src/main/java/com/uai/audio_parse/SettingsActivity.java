@@ -74,8 +74,7 @@ public class SettingsActivity extends AppCompatActivity {
                 if (progressDialog != null && progressDialog.isShowing()) {
                     progressDialog.setProgress(progress);
                     String modelName = modelDownloader.getModelDisplayName(downloadingModelType);
-                    String sizeHint = PreferencesManager.MODEL_TYPE_STANDARD.equals(downloadingModelType) ? "1.3GB" : 
-                                     PreferencesManager.MODEL_TYPE_MULTICN.equals(downloadingModelType) ? "1.5GB" : "50MB";
+                    String sizeHint = getModelSizeHint(downloadingModelType);
                     if (progress < 50) {
                         progressDialog.setMessage(getString(R.string.model_download_progress, progress * 2) + "\n" + modelName + " (" + sizeHint + ")");
                     } else {
@@ -245,8 +244,7 @@ public class SettingsActivity extends AppCompatActivity {
     
     private void showDownloadProgressDialog(String modelType) {
         String modelName = modelDownloader.getModelDisplayName(modelType);
-        String sizeHint = PreferencesManager.MODEL_TYPE_STANDARD.equals(modelType) ? "1.3GB" : 
-                         PreferencesManager.MODEL_TYPE_MULTICN.equals(modelType) ? "1.5GB" : "50MB";
+        String sizeHint = getModelSizeHint(modelType);
         
         progressDialog = new ProgressDialog(this);
         progressDialog.setMessage(getString(R.string.model_download_progress, 0) + "\n" + modelName + " (" + sizeHint + ")");
@@ -258,6 +256,23 @@ public class SettingsActivity extends AppCompatActivity {
             Toast.makeText(SettingsActivity.this, "模型将在后台继续下载", Toast.LENGTH_SHORT).show();
         });
         progressDialog.show();
+    }
+    
+    private String getModelSizeHint(String modelType) {
+        if (PreferencesManager.MODEL_TYPE_STANDARD.equals(modelType)) {
+            return "1.3GB";
+        } else if (PreferencesManager.MODEL_TYPE_MULTICN.equals(modelType)) {
+            return "1.5GB";
+        } else if (PreferencesManager.WHISPER_MODEL_TINY.equals(modelType)) {
+            return "75MB";
+        } else if (PreferencesManager.WHISPER_MODEL_BASE.equals(modelType)) {
+            return "142MB";
+        } else if (PreferencesManager.WHISPER_MODEL_SMALL.equals(modelType)) {
+            return "466MB";
+        } else if (PreferencesManager.WHISPER_MODEL_MEDIUM.equals(modelType)) {
+            return "1.5GB";
+        }
+        return "50MB";
     }
     
     private void switchModel(String modelType) {

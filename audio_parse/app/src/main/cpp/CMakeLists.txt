@@ -25,7 +25,6 @@ target_include_directories(whisper_lib PRIVATE
 
 target_compile_definitions(whisper_lib PRIVATE
     GGML_USE_CPU
-    GGML_USE_ACCELERATE
 )
 
 target_compile_options(whisper_lib PRIVATE

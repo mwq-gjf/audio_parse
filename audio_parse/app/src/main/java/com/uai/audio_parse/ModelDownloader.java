@@ -9,6 +9,9 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -27,6 +30,12 @@ import okhttp3.Response;
  */
 public class ModelDownloader {
     private static final String TAG = "ModelDownloader";
+    
+    private static final String LOG_DIR_NAME = "TingJian_Logs";
+    private static final String LOG_FILE_NAME = "transcription_log.txt";
+    
+    private File logFile;
+    private FileOutputStream logOutputStream;
     
     private static final String MODEL_SMALL_URL = "https://alphacephei.com/vosk/models/vosk-model-small-cn-0.22.zip";
     private static final String MODEL_SMALL_NAME = "vosk-model-small-cn-0.22";
@@ -93,6 +102,44 @@ public class ModelDownloader {
         return context.getFilesDir();
     }
     
+    private File getLogDir() {
+        File externalDir = context.getExternalFilesDir(null);
+        if (externalDir == null) {
+            externalDir = context.getFilesDir();
+        }
+        return new File(externalDir, LOG_DIR_NAME);
+    }
+    
+    private void initLog() {
+        try {
+            File logDir = getLogDir();
+            if (!logDir.exists()) {
+                logDir.mkdirs();
+            }
+            
+            logFile = new File(logDir, LOG_FILE_NAME);
+            logOutputStream = new FileOutputStream(logFile, true);
+            
+            Log.i(TAG, "日志文件已初始化: " + logFile.getAbsolutePath());
+        } catch (Exception e) {
+            writeErrorLog("错误: [ModelDownloader] 初始化日志失败 - " + e.getClass().getName() + ": " + e.getMessage());
+            Log.e(TAG, "初始化日志失败", e);
+        }
+    }
+    
+    private void writeErrorLog(String message) {
+        if (logOutputStream != null) {
+            try {
+                String timestamp = new SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(new Date());
+                String logLine = "[" + timestamp + "] " + message + "\n";
+                logOutputStream.write(logLine.getBytes());
+                logOutputStream.flush();
+            } catch (Exception e) {
+                Log.e(TAG, "写入日志失败", e);
+            }
+        }
+    }
+    
     public String getModelsStoragePath() {
         return getModelsStorageDir().getAbsolutePath();
     }
@@ -102,14 +149,16 @@ public class ModelDownloader {
             String modelName = getModelName(modelType);
             File whisperDir = new File(getModelsStorageDir(), "whisper");
             File modelFile = new File(whisperDir, modelName);
-            return modelFile.exists();
+            boolean exists = modelFile.exists();
+            return exists;
         }
         
         String modelName = getModelName(modelType);
         File modelDir = new File(getModelsStorageDir(), modelName);
         File amDir = new File(modelDir, "am");
         File confFile = new File(modelDir, "conf");
-        return amDir.exists() && confFile.exists();
+        boolean exists = amDir.exists() && confFile.exists();
+        return exists;
     }
     
     private boolean isWhisperModel(String modelType) {
@@ -124,9 +173,12 @@ public class ModelDownloader {
         String modelName = getModelName(modelType);
         if (isWhisperModel(modelType)) {
             File whisperDir = new File(getModelsStorageDir(), "whisper");
-            return new File(whisperDir, modelName).getAbsolutePath();
+            String path = new File(whisperDir, modelName).getAbsolutePath();
+            return path;
         }
-        return new File(getModelsStorageDir(), modelName).getAbsolutePath();
+        File modelDir = getModelsStorageDir();
+        String path = new File(modelDir, modelName).getAbsolutePath();
+        return path;
     }
     
     public String getModelPath() {
@@ -153,7 +205,22 @@ public class ModelDownloader {
     }
     
     public String getModelUrl(String modelType) {
-        return null;
+        switch (modelType) {
+            case PreferencesManager.MODEL_TYPE_STANDARD:
+                return MODEL_STANDARD_URL;
+            case PreferencesManager.MODEL_TYPE_MULTICN:
+                return MODEL_MULTICN_URL;
+            case PreferencesManager.WHISPER_MODEL_TINY:
+                return "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin";
+            case PreferencesManager.WHISPER_MODEL_BASE:
+                return "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin";
+            case PreferencesManager.WHISPER_MODEL_SMALL:
+                return "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin";
+            case PreferencesManager.WHISPER_MODEL_MEDIUM:
+                return "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin";
+            default:
+                return MODEL_SMALL_URL;
+        }
     }
     
     public String getModelDisplayName(String modelType) {
@@ -176,11 +243,14 @@ public class ModelDownloader {
     }
     
     public void downloadModel(String modelType, DownloadCallback callback) {
+        initLog();
+        
         new Thread(() -> {
             try {
                 String modelName = getModelName(modelType);
                 
                 if (isWhisperModel(modelType)) {
+                    writeErrorLog("错误: [ModelDownloader] Whisper模型不能通过此方式下载");
                     callback.onError("请使用设置页面的下载功能下载Whisper模型");
                     return;
                 }
@@ -200,6 +270,7 @@ public class ModelDownloader {
                 
                 try (Response response = client.newCall(request).execute()) {
                     if (!response.isSuccessful()) {
+                        writeErrorLog("错误: [ModelDownloader] 下载失败，HTTP状态码: " + response.code());
                         callback.onError("下载失败: " + response.code());
                         return;
                     }
@@ -237,6 +308,8 @@ public class ModelDownloader {
                 }
                 
             } catch (Exception e) {
+                writeErrorLog("错误: [ModelDownloader] 下载异常 - " + e.getClass().getName() + ": " + e.getMessage());
+                e.printStackTrace();
                 Log.e(TAG, "Download error", e);
                 callback.onError("下载失败: " + e.getMessage());
             }
@@ -288,7 +361,9 @@ public class ModelDownloader {
         zipInputStream.close();
         
         if (!isCancelled) {
-            callback.onComplete(getModelPath(modelType));
+            String modelPath = getModelPath(modelType);
+            callback.onComplete(modelPath);
+        } else {
         }
     }
     
@@ -298,7 +373,8 @@ public class ModelDownloader {
             File whisperDir = new File(getModelsStorageDir(), "whisper");
             File modelFile = new File(whisperDir, modelName);
             if (modelFile.exists()) {
-                return modelFile.delete();
+                boolean deleted = modelFile.delete();
+                return deleted;
             }
             return false;
         }

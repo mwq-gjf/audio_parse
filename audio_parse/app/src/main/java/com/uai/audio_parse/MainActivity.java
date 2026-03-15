@@ -43,6 +43,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
+import android.util.Log;
+
 /**
  * 应用主界面Activity
  * 负责音频文件的转写、AI总结、结果展示和分享等功能
@@ -52,6 +54,12 @@ import java.util.Locale;
  */
 public class MainActivity extends AppCompatActivity {
     private static final int PERMISSION_REQUEST_CODE = 100;
+    
+    private static final String LOG_DIR_NAME = "TingJian_Logs";
+    private static final String LOG_FILE_NAME = "transcription_log.txt";
+    
+    private File logFile;
+    private FileOutputStream logOutputStream;
     
     private TextView fileInfoTextView;
     private Button transcribeButton;
@@ -134,6 +142,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         
+        initLog();
         initViews();
         initManagers();
         checkPermissions();
@@ -188,9 +197,64 @@ public class MainActivity extends AppCompatActivity {
     
     private void initManagers() {
         preferencesManager = new PreferencesManager(this);
-        audioExtractor = new AudioExtractor();
+        audioExtractor = new AudioExtractor(this);
         modelDownloader = new ModelDownloader(this);
         historyManager = new TranscriptionHistoryManager(this);
+    }
+    
+    private void initLog() {
+        try {
+            File externalDir = getExternalFilesDir(null);
+            if (externalDir == null) {
+                externalDir = getFilesDir();
+            }
+            
+            File logDir = new File(externalDir, LOG_DIR_NAME);
+            if (!logDir.exists()) {
+                logDir.mkdirs();
+            }
+            
+            logFile = new File(logDir, LOG_FILE_NAME);
+            logOutputStream = new FileOutputStream(logFile, false);
+            
+            String logHeader = "=== 转写日志 ===\n";
+            logHeader += "时间: " + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date()) + "\n";
+            logHeader += "设备: " + Build.BRAND + " " + Build.MODEL + "\n";
+            logHeader += "Android版本: " + Build.VERSION.RELEASE + "\n";
+            logHeader += "应用版本: 1.0\n\n";
+            
+            logOutputStream.write(logHeader.getBytes());
+            logOutputStream.flush();
+            
+            Log.i("MainActivity", "日志文件已初始化: " + logFile.getAbsolutePath());
+        } catch (Exception e) {
+            Log.e("MainActivity", "初始化日志失败", e);
+        }
+    }
+    
+    private void writeErrorLog(String message) {
+        if (logOutputStream != null) {
+            try {
+                String timestamp = new SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(new Date());
+                String logLine = "[" + timestamp + "] " + message + "\n";
+                logOutputStream.write(logLine.getBytes());
+                logOutputStream.flush();
+            } catch (Exception e) {
+                Log.e("MainActivity", "写入日志失败", e);
+            }
+        }
+    }
+    
+    private void closeLog() {
+        if (logOutputStream != null) {
+            try {
+                logOutputStream.write("\n=== 日志结束 ===\n".getBytes());
+                logOutputStream.flush();
+                logOutputStream.close();
+            } catch (Exception e) {
+                Log.e("MainActivity", "关闭日志失败", e);
+            }
+        }
     }
     
     private void checkPermissions() {
@@ -226,6 +290,7 @@ public class MainActivity extends AppCompatActivity {
     
     @Override
     protected void onDestroy() {
+        closeLog();
         super.onDestroy();
         if (speechRecognizer != null) {
             speechRecognizer.close();
@@ -377,12 +442,14 @@ public class MainActivity extends AppCompatActivity {
         }
         
         if (selectedFileUri == null) {
+            writeErrorLog("错误: [MainActivity] 未选择文件");
             Toast.makeText(this, R.string.no_file_selected, Toast.LENGTH_SHORT).show();
             return;
         }
         
         String selectedModelType = preferencesManager.getSelectedModelType();
         if (!modelDownloader.isModelDownloaded(selectedModelType)) {
+            writeErrorLog("错误: [MainActivity] 模型未下载");
             showModelDownloadDialog();
             return;
         }
@@ -399,6 +466,15 @@ public class MainActivity extends AppCompatActivity {
         extractedAudioPath = "";
         resultTextView.setText("");
         
+        
+        String modelType = preferencesManager.getSelectedModelType();
+        if (modelType.startsWith("whisper_")) {
+            preferencesManager.saveEngineType(PreferencesManager.ENGINE_WHISPER);
+        } else {
+            preferencesManager.saveEngineType(PreferencesManager.ENGINE_VOSK);
+        }
+        
+        
         new Thread(() -> {
             try {
                 runOnUiThread(() -> {
@@ -413,6 +489,7 @@ public class MainActivity extends AppCompatActivity {
                     });
                 });
                 
+                
                 if (!isTranscribing) {
                     return;
                 }
@@ -426,6 +503,7 @@ public class MainActivity extends AppCompatActivity {
                 }
                 
             } catch (Exception e) {
+                writeErrorLog("错误: [MainActivity] 转写过程异常 - " + e.getClass().getName() + ": " + e.getMessage());
                 e.printStackTrace();
                 runOnUiThread(() -> {
                     isTranscribing = false;
@@ -449,6 +527,7 @@ public class MainActivity extends AppCompatActivity {
         
         String selectedModelType = preferencesManager.getSelectedModelType();
         String modelPath = modelDownloader.getModelPath(selectedModelType);
+        
         
         try {
             speechRecognizer = new SpeechRecognizer(this, 
@@ -498,6 +577,7 @@ public class MainActivity extends AppCompatActivity {
                         
                         @Override
                         public void onError(String error) {
+                            writeErrorLog("错误: Vosk识别错误 - " + error);
                             runOnUiThread(() -> {
                                 isTranscribing = false;
                                 buttonAnimationHandler.removeCallbacks(buttonAnimationRunnable);
@@ -523,6 +603,7 @@ public class MainActivity extends AppCompatActivity {
             
             speechRecognizer.recognizeFile(audioPath);
         } catch (IOException e) {
+            writeErrorLog("错误: Vosk转写IO异常 - " + e.getMessage());
             e.printStackTrace();
             runOnUiThread(() -> {
                 isTranscribing = false;
@@ -538,6 +619,22 @@ public class MainActivity extends AppCompatActivity {
     }
     
     private void transcribeWithWhisper(String audioPath) {
+        
+        if (!WhisperRecognizer.isLibraryAvailable()) {
+            writeErrorLog("错误: [MainActivity] Whisper库未加载");
+            runOnUiThread(() -> {
+                isTranscribing = false;
+                buttonAnimationHandler.removeCallbacks(buttonAnimationRunnable);
+                progressBar.setVisibility(View.GONE);
+                progressTextView.setVisibility(View.GONE);
+                transcribeButton.setEnabled(true);
+                transcribeButton.setText(R.string.start_transcribe);
+                Toast.makeText(MainActivity.this, 
+                        "Whisper库未加载，请使用Vosk模型", Toast.LENGTH_LONG).show();
+            });
+            return;
+        }
+        
         runOnUiThread(() -> {
             progressTextView.setText("加载Whisper模型...");
         });
@@ -545,54 +642,96 @@ public class MainActivity extends AppCompatActivity {
         String selectedModelType = preferencesManager.getSelectedModelType();
         String modelPath = modelDownloader.getModelPath(selectedModelType);
         
-        if (whisperRecognizer == null) {
-            whisperRecognizer = new WhisperRecognizer();
-        }
-        
-        if (!whisperRecognizer.isModelLoaded() || 
-            !modelPath.equals(whisperRecognizer.getModelPath())) {
-            boolean loaded = whisperRecognizer.loadModel(modelPath);
-            if (!loaded) {
-                runOnUiThread(() -> {
-                    isTranscribing = false;
-                    buttonAnimationHandler.removeCallbacks(buttonAnimationRunnable);
-                    progressBar.setVisibility(View.GONE);
-                    progressTextView.setVisibility(View.GONE);
-                    transcribeButton.setEnabled(true);
-                    transcribeButton.setText(R.string.start_transcribe);
-                    Toast.makeText(MainActivity.this, 
-                            "Whisper模型加载失败", Toast.LENGTH_LONG).show();
+        try {
+            if (whisperRecognizer == null) {
+                whisperRecognizer = new WhisperRecognizer(this);
+            } else {
+            }
+            
+            if (!whisperRecognizer.isModelLoaded() || 
+                !modelPath.equals(whisperRecognizer.getModelPath())) {
+                boolean loaded = whisperRecognizer.loadModel(modelPath);
+                if (!loaded) {
+                    writeErrorLog("错误: [MainActivity] Whisper模型加载失败");
+                    runOnUiThread(() -> {
+                        isTranscribing = false;
+                        buttonAnimationHandler.removeCallbacks(buttonAnimationRunnable);
+                        progressBar.setVisibility(View.GONE);
+                        progressTextView.setVisibility(View.GONE);
+                        transcribeButton.setEnabled(true);
+                        transcribeButton.setText(R.string.start_transcribe);
+                        Toast.makeText(MainActivity.this, 
+                                "Whisper模型加载失败", Toast.LENGTH_LONG).show();
+                    });
+                    return;
+                }
+            } else {
+            }
+            
+            runOnUiThread(() -> {
+                progressTextView.setText("Whisper分段转写中...");
+                progressBar.setProgress(50);
+            });
+            
+            StringBuilder currentResult = new StringBuilder();
+            
+            String result = whisperRecognizer.transcribeInSegments(audioPath, WhisperRecognizer.LANG_ZH, 
+                new WhisperRecognizer.SegmentCallback() {
+                    @Override
+                    public void onSegmentTranscribed(String segmentText, int segmentIndex, int totalSegments) {
+                        runOnUiThread(() -> {
+                            currentResult.append(segmentText).append(" ");
+                            String displayText = currentResult.toString().trim();
+                            transcribedText = displayText;
+                            if (!isShowingSummary) {
+                                resultTextView.setText(displayText);
+                            }
+                            progressTextView.setText("Whisper转写中... (" + segmentIndex + "/" + totalSegments + ")");
+                        });
+                    }
+                    
+                    @Override
+                    public void onProgress(int progress) {
+                        runOnUiThread(() -> {
+                            progressBar.setProgress(50 + progress / 2);
+                        });
+                    }
                 });
-                return;
-            }
+            
+            
+            runOnUiThread(() -> {
+                isTranscribing = false;
+                buttonAnimationHandler.removeCallbacks(buttonAnimationRunnable);
+                transcribedText = result;
+                if (!isShowingSummary) {
+                    resultTextView.setText(result);
+                }
+                progressBar.setVisibility(View.GONE);
+                progressTextView.setVisibility(View.GONE);
+                transcribeButton.setEnabled(true);
+                transcribeButton.setText(R.string.start_transcribe);
+                
+                if (result != null && !result.isEmpty()) {
+                    historyManager.addHistory(selectedFileName, result, "");
+                }
+                
+                Toast.makeText(MainActivity.this, 
+                        R.string.transcribe_complete, Toast.LENGTH_SHORT).show();
+            });
+        } catch (Exception e) {
+            writeErrorLog("错误: [MainActivity] Whisper转写异常 - " + e.getClass().getName() + ": " + e.getMessage());
+            e.printStackTrace();
+            runOnUiThread(() -> {
+                isTranscribing = false;
+                buttonAnimationHandler.removeCallbacks(buttonAnimationRunnable);
+                progressBar.setVisibility(View.GONE);
+                progressTextView.setVisibility(View.GONE);
+                transcribeButton.setEnabled(true);
+                transcribeButton.setText(R.string.start_transcribe);
+                Toast.makeText(MainActivity.this, 
+                        "Whisper转写失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            });
         }
-        
-        runOnUiThread(() -> {
-            progressTextView.setText("Whisper转写中...");
-            progressBar.setProgress(50);
-        });
-        
-        String result = whisperRecognizer.transcribe(audioPath, WhisperRecognizer.LANG_AUTO);
-        
-        runOnUiThread(() -> {
-            isTranscribing = false;
-            buttonAnimationHandler.removeCallbacks(buttonAnimationRunnable);
-            transcribedText = result;
-            if (!isShowingSummary) {
-                resultTextView.setText(result);
-            }
-            progressBar.setVisibility(View.GONE);
-            progressTextView.setVisibility(View.GONE);
-            transcribeButton.setEnabled(true);
-            transcribeButton.setText(R.string.start_transcribe);
-            
-            if (result != null && !result.isEmpty()) {
-                historyManager.addHistory(selectedFileName, result, "");
-            }
-            
-            Toast.makeText(MainActivity.this, 
-                    R.string.transcribe_complete, Toast.LENGTH_SHORT).show();
-        });
     }
     
     private void stopTranscription() {

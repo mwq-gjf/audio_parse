@@ -14,7 +14,7 @@ static whisper_context* g_context = nullptr;
 static std::string g_model_path;
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_uai_audio_1parse_WhisperRecognizer_loadModel(
+Java_com_uai_audio_1parse_WhisperRecognizer_loadModelNative(
         JNIEnv* env,
         jobject thiz,
         jstring model_path) {
@@ -26,6 +26,8 @@ Java_com_uai_audio_1parse_WhisperRecognizer_loadModel(
     }
     
     LOGI("Loading whisper model from: %s", c_model_path);
+    
+    std::string model_path_str(c_model_path);
     
     if (g_context != nullptr) {
         whisper_free(g_context);
@@ -41,20 +43,20 @@ Java_com_uai_audio_1parse_WhisperRecognizer_loadModel(
         return JNI_FALSE;
     }
     
-    g_model_path = std::string(c_model_path);
+    g_model_path = model_path_str;
     LOGI("Whisper model loaded successfully");
     return JNI_TRUE;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_uai_audio_1parse_WhisperRecognizer_isModelLoaded(
+Java_com_uai_audio_1parse_WhisperRecognizer_isModelLoadedNative(
         JNIEnv* env,
         jobject thiz) {
     return g_context != nullptr ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_uai_audio_1parse_WhisperRecognizer_freeModel(
+Java_com_uai_audio_1parse_WhisperRecognizer_freeModelNative(
         JNIEnv* env,
         jobject thiz) {
     if (g_context != nullptr) {
@@ -76,6 +78,11 @@ static std::string transcribeInternal(whisper_context* ctx, const char* audio_pa
     std::streamsize size = file.tellg();
     file.seekg(0, std::ios::beg);
     
+    if (size < 44) {
+        LOGE("Audio file too small");
+        return "";
+    }
+    
     std::vector<char> buffer(size);
     if (!file.read(buffer.data(), size)) {
         LOGE("Failed to read audio file");
@@ -83,8 +90,13 @@ static std::string transcribeInternal(whisper_context* ctx, const char* audio_pa
     }
     file.close();
     
-    if (size < 44) {
-        LOGE("Audio file too small");
+    if (buffer[0] != 'R' || buffer[1] != 'I' || buffer[2] != 'F' || buffer[3] != 'F') {
+        LOGE("Invalid WAV file: RIFF header not found");
+        return "";
+    }
+    
+    if (buffer[8] != 'W' || buffer[9] != 'A' || buffer[10] != 'V' || buffer[11] != 'E') {
+        LOGE("Invalid WAV file: WAVE header not found");
         return "";
     }
     
@@ -93,6 +105,16 @@ static std::string transcribeInternal(whisper_context* ctx, const char* audio_pa
     int bits_per_sample = *reinterpret_cast<int16_t*>(&buffer[34]);
     
     LOGI("Audio info: channels=%d, sample_rate=%d, bits=%d", num_channels, sample_rate, bits_per_sample);
+    
+    if (sample_rate != 16000) {
+        LOGE("Unsupported sample rate: %d (expected 16000)", sample_rate);
+        return "";
+    }
+    
+    if (bits_per_sample != 16 && bits_per_sample != 32) {
+        LOGE("Unsupported bits per sample: %d (expected 16 or 32)", bits_per_sample);
+        return "";
+    }
     
     int data_offset = 44;
     char* data = buffer.data() + data_offset;
@@ -126,6 +148,10 @@ static std::string transcribeInternal(whisper_context* ctx, const char* audio_pa
     params.n_threads = 4;
     params.print_progress = false;
     params.print_timestamps = withTimestamps;
+    
+    if (strcmp(language, "zh") == 0) {
+        params.initial_prompt = "以下是简体中文的语音转写。";
+    }
     
     int result = whisper_full(ctx, params, samples.data(), samples.size());
     
@@ -171,7 +197,7 @@ static std::string transcribeInternal(whisper_context* ctx, const char* audio_pa
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_uai_audio_1parse_WhisperRecognizer_transcribe(
+Java_com_uai_audio_1parse_WhisperRecognizer_transcribeNative(
         JNIEnv* env,
         jobject thiz,
         jstring audio_path,
@@ -199,7 +225,7 @@ Java_com_uai_audio_1parse_WhisperRecognizer_transcribe(
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_uai_audio_1parse_WhisperRecognizer_transcribeWithTimestamps(
+Java_com_uai_audio_1parse_WhisperRecognizer_transcribeWithTimestampsNative(
         JNIEnv* env,
         jobject thiz,
         jstring audio_path,

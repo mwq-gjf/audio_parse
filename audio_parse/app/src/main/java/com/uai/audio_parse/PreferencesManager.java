@@ -2,6 +2,13 @@ package com.uai.audio_parse;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.util.Log;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 /**
  * 偏好设置管理器
@@ -12,6 +19,10 @@ import android.content.SharedPreferences;
  * @version 1.0
  */
 public class PreferencesManager {
+    private static final String TAG = "PreferencesManager";
+    private static final String LOG_DIR_NAME = "TingJian_Logs";
+    private static final String LOG_FILE_NAME = "transcription_log.txt";
+    
     private static final String PREF_NAME = "audio_parse_prefs";
     private static final String KEY_API_URL = "api_url";
     private static final String KEY_API_TOKEN = "api_token";
@@ -22,6 +33,8 @@ public class PreferencesManager {
     private static final String KEY_SPEECH_API_TOKEN = "speech_api_token";
     private static final String KEY_USE_ONLINE_SPEECH = "use_online_speech";
     private static final String KEY_ENGINE_TYPE = "engine_type";
+    
+    private final Context context;
     
     public static final String MODEL_TYPE_SMALL = "small";
     public static final String MODEL_TYPE_STANDARD = "standard";
@@ -38,6 +51,7 @@ public class PreferencesManager {
     private final SharedPreferences sharedPreferences;
     
     public PreferencesManager(Context context) {
+        this.context = context;
         sharedPreferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
     }
     
@@ -126,10 +140,38 @@ public class PreferencesManager {
     }
     
     public String getEngineType() {
-        return sharedPreferences.getString(KEY_ENGINE_TYPE, ENGINE_VOSK);
+        String result = sharedPreferences.getString(KEY_ENGINE_TYPE, ENGINE_VOSK);
+        return result;
     }
     
     public boolean isWhisperEngine() {
-        return ENGINE_WHISPER.equals(getEngineType());
+        boolean result = ENGINE_WHISPER.equals(getEngineType());
+        return result;
+    }
+    
+    private void writeErrorLog(String message) {
+        try {
+            File externalDir = context.getExternalFilesDir(null);
+            if (externalDir == null) {
+                externalDir = context.getFilesDir();
+            }
+            
+            File logDir = new File(externalDir, LOG_DIR_NAME);
+            if (!logDir.exists()) {
+                logDir.mkdirs();
+                Log.i(TAG, "创建日志目录: " + logDir.getAbsolutePath());
+            }
+            
+            File logFile = new File(logDir, LOG_FILE_NAME);
+            FileOutputStream logOutputStream = new FileOutputStream(logFile, true);
+            
+            String timestamp = new SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(new Date());
+            String logLine = "[" + timestamp + "] " + message + "\n";
+            logOutputStream.write(logLine.getBytes());
+            logOutputStream.flush();
+            logOutputStream.close();
+        } catch (Exception e) {
+            Log.e(TAG, "写入日志失败", e);
+        }
     }
 }

@@ -237,6 +237,12 @@ android {
 - 对英文识别准确率更高
 - 模型大小适中，性能优秀
 
+**Whisper模型下载源**：模型托管在Hugging Face，下载链接：
+- Tiny: https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin
+- Base: https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin
+- Small: https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin
+- Medium: https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin
+
 ## 🏗️ 项目结构
 
 ```

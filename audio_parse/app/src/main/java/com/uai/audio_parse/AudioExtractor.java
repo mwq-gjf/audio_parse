@@ -34,10 +34,56 @@ public class AudioExtractor {
     private static final int CHANNELS = 1;
     private static final int TIMEOUT_US = 10000;
     
+    private static final String LOG_DIR_NAME = "TingJian_Logs";
+    private static final String LOG_FILE_NAME = "transcription_log.txt";
+    
+    private File logFile;
+    private FileOutputStream logOutputStream;
+    private Context context;
+    
     private volatile boolean isCancelled = false;
     
     public interface ProgressCallback {
         void onProgress(int progress);
+    }
+    
+    public AudioExtractor(Context context) {
+        this.context = context;
+        initLog();
+    }
+    
+    private void initLog() {
+        try {
+            File externalDir = context.getExternalFilesDir(null);
+            if (externalDir == null) {
+                externalDir = context.getFilesDir();
+            }
+            
+            File logDir = new File(externalDir, LOG_DIR_NAME);
+            if (!logDir.exists()) {
+                logDir.mkdirs();
+            }
+            
+            logFile = new File(logDir, LOG_FILE_NAME);
+            logOutputStream = new FileOutputStream(logFile, true);
+            
+            Log.i(TAG, "日志文件已初始化: " + logFile.getAbsolutePath());
+        } catch (Exception e) {
+            Log.e(TAG, "初始化日志失败", e);
+        }
+    }
+    
+    private void writeErrorLog(String message) {
+        if (logOutputStream != null) {
+            try {
+                String timestamp = new SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(new Date());
+                String logLine = "[" + timestamp + "] " + message + "\n";
+                logOutputStream.write(logLine.getBytes());
+                logOutputStream.flush();
+            } catch (Exception e) {
+                Log.e(TAG, "写入日志失败", e);
+            }
+        }
     }
     
     public String extractAudio(Context context, Uri videoUri, ProgressCallback callback) throws IOException {
@@ -50,11 +96,13 @@ public class AudioExtractor {
         
         int audioTrackIndex = findAudioTrack(extractor);
         if (audioTrackIndex == -1) {
+            writeErrorLog("错误: [AudioExtractor] 未找到音频轨道");
             throw new IOException("No audio track found");
         }
         
         extractor.selectTrack(audioTrackIndex);
         MediaFormat format = extractor.getTrackFormat(audioTrackIndex);
+        
         
         long duration = format.getLong(MediaFormat.KEY_DURATION);
         long totalSamples = (duration * SAMPLE_RATE) / 1000000;
@@ -120,6 +168,8 @@ public class AudioExtractor {
             }
         }
         
+        if (isCancelled) {
+        }
         codec.stop();
         codec.release();
         extractor.release();
@@ -130,6 +180,7 @@ public class AudioExtractor {
         FileOutputStream fos = new FileOutputStream(tempFile);
         fos.write(audioData);
         fos.close();
+        
         
         return tempFile.getAbsolutePath();
     }
@@ -143,6 +194,7 @@ public class AudioExtractor {
                 return i;
             }
         }
+        writeErrorLog("错误: [AudioExtractor] 未找到音频轨道");
         return -1;
     }
     

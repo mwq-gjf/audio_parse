@@ -21,6 +21,9 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -32,6 +35,12 @@ public class ModelDownloadService extends Service {
     private static final String TAG = "ModelDownloadService";
     private static final String CHANNEL_ID = "model_download_channel";
     private static final int NOTIFICATION_ID = 1001;
+    
+    private static final String LOG_DIR_NAME = "TingJian_Logs";
+    private static final String LOG_FILE_NAME = "transcription_log.txt";
+    
+    private File logFile;
+    private FileOutputStream logOutputStream;
     
     public static final String ACTION_START_DOWNLOAD = "com.uai.audio_parse.START_DOWNLOAD";
     public static final String ACTION_CANCEL_DOWNLOAD = "com.uai.audio_parse.CANCEL_DOWNLOAD";
@@ -57,16 +66,16 @@ public class ModelDownloadService extends Service {
     private static final String MODEL_MULTICN_URL = "https://alphacephei.com/vosk/models/vosk-model-cn-kaldi-multicn-0.15.zip";
     private static final String MODEL_MULTICN_NAME = "vosk-model-cn-kaldi-multicn-0.15";
     
-    private static final String WHISPER_TINY_URL = "https://ggml.ggerganov.com/ggml-model-whisper-tiny.bin";
+    private static final String WHISPER_TINY_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin";
     private static final String WHISPER_TINY_NAME = "ggml-tiny.bin";
     
-    private static final String WHISPER_BASE_URL = "https://ggml.ggerganov.com/ggml-model-whisper-base.bin";
+    private static final String WHISPER_BASE_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin";
     private static final String WHISPER_BASE_NAME = "ggml-base.bin";
     
-    private static final String WHISPER_SMALL_URL = "https://ggml.ggerganov.com/ggml-model-whisper-small.bin";
+    private static final String WHISPER_SMALL_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin";
     private static final String WHISPER_SMALL_NAME = "ggml-small.bin";
     
-    private static final String WHISPER_MEDIUM_URL = "https://ggml.ggerganov.com/ggml-model-whisper-medium.bin";
+    private static final String WHISPER_MEDIUM_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin";
     private static final String WHISPER_MEDIUM_NAME = "ggml-medium.bin";
     
     private static final String MODELS_DIR_NAME = "TingJian_Models";
@@ -89,6 +98,7 @@ public class ModelDownloadService extends Service {
     
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        initLog();
         if (intent != null) {
             String action = intent.getAction();
             if (ACTION_START_DOWNLOAD.equals(action)) {
@@ -103,6 +113,12 @@ public class ModelDownloadService extends Service {
             }
         }
         return START_NOT_STICKY;
+    }
+    
+    @Override
+    public void onDestroy() {
+        closeLog();
+        super.onDestroy();
     }
     
     @Nullable
@@ -139,6 +155,8 @@ public class ModelDownloadService extends Service {
             try {
                 downloadModel(modelType);
             } catch (Exception e) {
+                writeErrorLog("错误: [ModelDownloadService] 下载异常 - " + e.getClass().getName() + ": " + e.getMessage());
+                e.printStackTrace();
                 Log.e(TAG, "Download error", e);
                 sendErrorBroadcast(e.getMessage());
                 clearDownloadingModel();
@@ -163,6 +181,7 @@ public class ModelDownloadService extends Service {
         String modelUrl = getModelUrl(modelType);
         String displayName = getModelDisplayName(modelType);
         boolean isWhisper = isWhisperModel(modelType);
+        
         
         if (isWhisper) {
             downloadWhisperModel(modelType, modelName, modelUrl, displayName);
@@ -284,6 +303,7 @@ public class ModelDownloadService extends Service {
                 zipFile.delete();
                 throw new IOException("下载已取消");
             }
+            
             
             updateNotification(50, "解压中 " + displayName);
             sendProgressBroadcast(50, "解压中...");
@@ -505,6 +525,56 @@ public class ModelDownloadService extends Service {
     private void clearDownloadingModel() {
         SharedPreferences prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
         prefs.edit().remove(KEY_DOWNLOADING_MODEL).apply();
+    }
+    
+    private File getLogDir() {
+        File externalDir = getExternalFilesDir(null);
+        if (externalDir == null) {
+            externalDir = getFilesDir();
+        }
+        return new File(externalDir, LOG_DIR_NAME);
+    }
+    
+    private void initLog() {
+        try {
+            File logDir = getLogDir();
+            if (!logDir.exists()) {
+                logDir.mkdirs();
+            }
+            
+            logFile = new File(logDir, LOG_FILE_NAME);
+            logOutputStream = new FileOutputStream(logFile, true);
+            
+            Log.i(TAG, "日志文件已初始化: " + logFile.getAbsolutePath());
+        } catch (Exception e) {
+            writeErrorLog("错误: [ModelDownloadService] 初始化日志失败 - " + e.getClass().getName() + ": " + e.getMessage());
+            Log.e(TAG, "初始化日志失败", e);
+        }
+    }
+    
+    private void writeErrorLog(String message) {
+        if (logOutputStream != null) {
+            try {
+                String timestamp = new SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(new Date());
+                String logLine = "[" + timestamp + "] " + message + "\n";
+                logOutputStream.write(logLine.getBytes());
+                logOutputStream.flush();
+            } catch (Exception e) {
+                Log.e(TAG, "写入日志失败", e);
+            }
+        }
+    }
+    
+    private void closeLog() {
+        if (logOutputStream != null) {
+            try {
+                logOutputStream.write("\n=== 日志结束 ===\n".getBytes());
+                logOutputStream.flush();
+                logOutputStream.close();
+            } catch (Exception e) {
+                Log.e(TAG, "关闭日志失败", e);
+            }
+        }
     }
     
     public static String getDownloadingModel(Context context) {
